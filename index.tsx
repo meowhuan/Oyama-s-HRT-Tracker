@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import React, { useState, useEffect, useMemo, createContext, useContext, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -8,7 +8,7 @@ import {
 import { 
     Plus, Trash2, Syringe, Pill, Droplet, Sticker, X, 
     Settings, ChevronDown, ChevronUp, Save, Clock, Languages, Calendar,
-    Activity, Info
+    Activity, Info, ZoomIn, RotateCcw
 } from 'lucide-react';
 import {
     DoseEvent, Route, Ester, ExtraKey, SimulationResult,
@@ -28,6 +28,7 @@ const TRANSLATIONS = {
         "chart.tooltip.conc": "浓度",
         "chart.tooltip.time": "时间",
         "chart.now": "现在",
+        "chart.reset": "重置缩放",
         "timeline.title": "用药记录",
         "timeline.empty": "暂无记录，请点击右下角添加",
         "timeline.delete_confirm": "确定删除这条记录吗？",
@@ -80,6 +81,7 @@ const TRANSLATIONS = {
         "chart.tooltip.conc": "Conc.",
         "chart.tooltip.time": "Time",
         "chart.now": "NOW",
+        "chart.reset": "Reset Zoom",
         "timeline.title": "Dose History",
         "timeline.empty": "No records yet. Tap + to add.",
         "timeline.delete_confirm": "Are you sure you want to delete this record?",
@@ -345,7 +347,7 @@ const DoseFormModal = ({ isOpen, onClose, eventToEdit, onSave }: any) => {
         onClose();
     };
 
-    // Calculate availableEsters unconditionally (moved up)
+    // Calculate availableEsters unconditionally
     const availableEsters = useMemo(() => {
         switch (route) {
             case Route.injection: return [Ester.EB, Ester.EV, Ester.EC, Ester.EN];
@@ -538,6 +540,13 @@ const DoseFormModal = ({ isOpen, onClose, eventToEdit, onSave }: any) => {
 
 const ResultChart = ({ sim }: { sim: SimulationResult | null }) => {
     const { t, lang } = useTranslation();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [xDomain, setXDomain] = useState<[number, number] | null>(null);
+    const [isZoomed, setIsZoomed] = useState(false);
+
+    // Track pointers for touch interaction
+    const lastTouchRef = useRef<{ dist: number; center: number } | null>(null);
+    const lastPanRef = useRef<number | null>(null);
 
     const data = useMemo(() => {
         if (!sim || sim.timeH.length === 0) return [];
@@ -546,6 +555,136 @@ const ResultChart = ({ sim }: { sim: SimulationResult | null }) => {
             conc: sim.concPGmL[i]
         }));
     }, [sim]);
+
+    // Update domain when data loads, only if not zoomed
+    useEffect(() => {
+        if (data.length > 0 && !isZoomed) {
+            setXDomain([data[0].time, data[data.length - 1].time]);
+        }
+    }, [data, isZoomed]);
+
+    // Setup event listeners for the container to handle wheel/touch events passively/actively
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            if (!xDomain) return;
+
+            const scale = e.deltaY > 0 ? 1.1 : 0.9;
+            const [min, max] = xDomain;
+            const domainWidth = max - min;
+            const rect = el.getBoundingClientRect();
+            
+            // Calculate mouse position ratio (0 to 1) relative to chart width
+            // Assuming standard padding in Recharts, but simple approximation works well for UX
+            const mouseX = e.clientX - rect.left;
+            const chartWidth = rect.width;
+            
+            // Recharts has some padding, let's approximate the drawing area (usually like 60px left, 20px right)
+            // A simple 0-1 ratio based on full width is usually "good enough" for center-zoom feels
+            const ratio = Math.max(0, Math.min(1, mouseX / chartWidth));
+            
+            const mouseTime = min + domainWidth * ratio;
+            
+            const newWidth = domainWidth * scale;
+            const newMin = mouseTime - (mouseTime - min) * scale;
+            const newMax = newMin + newWidth;
+
+            setXDomain([newMin, newMax]);
+            setIsZoomed(true);
+        };
+
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        return () => el.removeEventListener('wheel', handleWheel);
+    }, [xDomain]);
+
+    // --- Touch & Drag Logic ---
+    
+    const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
+        // e.preventDefault(); // Don't prevent default here to allow click interactions unless moving
+        if ('touches' in e && e.touches.length === 2) {
+            // Pinch start
+            const t1 = e.touches[0];
+            const t2 = e.touches[1];
+            const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+            const center = (t1.clientX + t2.clientX) / 2;
+            lastTouchRef.current = { dist, center };
+        } else {
+            // Pan start (Touch or Mouse)
+            const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+            lastPanRef.current = clientX;
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
+        if (!xDomain) return;
+        
+        // Handle Pinch Zoom
+        if ('touches' in e && e.touches.length === 2) {
+            e.preventDefault(); // Stop page scroll
+            const t1 = e.touches[0];
+            const t2 = e.touches[1];
+            const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+            const center = (t1.clientX + t2.clientX) / 2;
+            
+            if (lastTouchRef.current) {
+                const lastDist = lastTouchRef.current.dist;
+                const scale = lastDist / dist;
+                const [min, max] = xDomain;
+                const width = max - min;
+                
+                // Zoom centered logic could be improved here, but simple center-screen zoom is robust
+                const newWidth = width * scale;
+                const centerTime = min + width * 0.5; // Zoom center of view
+                
+                const newMin = centerTime - newWidth / 2;
+                const newMax = centerTime + newWidth / 2;
+                
+                setXDomain([newMin, newMax]);
+                setIsZoomed(true);
+            }
+            lastTouchRef.current = { dist, center };
+            return;
+        }
+
+        // Handle Pan (1 finger or mouse drag)
+        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+        
+        // Check if mouse is down (buttons === 1) for mouse events
+        if (!('touches' in e) && e.buttons !== 1) {
+            lastPanRef.current = null;
+            return;
+        }
+
+        if (lastPanRef.current !== null) {
+            // e.preventDefault(); // Only if we want to stop browser nav gestures
+            const deltaX = lastPanRef.current - clientX;
+            const rect = containerRef.current?.getBoundingClientRect();
+            if (rect) {
+                const [min, max] = xDomain;
+                const width = max - min;
+                // Convert pixel delta to time delta
+                const timeDelta = (deltaX / rect.width) * width;
+                setXDomain([min + timeDelta, max + timeDelta]);
+                setIsZoomed(true);
+            }
+            lastPanRef.current = clientX;
+        }
+    };
+
+    const handleTouchEnd = () => {
+        lastTouchRef.current = null;
+        lastPanRef.current = null;
+    };
+
+    const resetZoom = () => {
+        if (data.length > 0) {
+            setXDomain([data[0].time, data[data.length - 1].time]);
+            setIsZoomed(false);
+        }
+    };
 
     const now = new Date().getTime();
 
@@ -557,13 +696,32 @@ const ResultChart = ({ sim }: { sim: SimulationResult | null }) => {
     );
     
     return (
-        <div className="bg-white p-6 rounded-3xl shadow-lg shadow-gray-100 border border-gray-100 relative overflow-hidden">
+        <div className="bg-white p-6 rounded-3xl shadow-lg shadow-gray-100 border border-gray-100 relative overflow-hidden group">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider">{t('chart.title')}</h2>
+                {isZoomed && (
+                    <button 
+                        onClick={resetZoom}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-xs font-bold transition-all animate-in fade-in"
+                    >
+                        <RotateCcw size={12} /> {t('chart.reset')}
+                    </button>
+                )}
             </div>
-            <div className="h-72 w-full">
+            
+            <div 
+                ref={containerRef}
+                className="h-72 w-full touch-none cursor-move"
+                onMouseDown={handleTouchStart}
+                onMouseMove={handleTouchMove}
+                onMouseUp={handleTouchEnd}
+                onMouseLeave={handleTouchEnd}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+            >
                 <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={data}>
+                    <ComposedChart data={data} margin={{ top: 10, right: 10, bottom: 5, left: 0 }}>
                         <defs>
                             <linearGradient id="colorConc" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2}/>
@@ -574,7 +732,8 @@ const ResultChart = ({ sim }: { sim: SimulationResult | null }) => {
                         <XAxis 
                             dataKey="time" 
                             type="number" 
-                            domain={['auto', 'auto']}
+                            domain={xDomain || ['auto', 'auto']}
+                            allowDataOverflow={true}
                             tickFormatter={(ms) => formatDate(new Date(ms), lang)}
                             tick={{fontSize: 10, fill: '#9ca3af'}}
                             minTickGap={40}
@@ -584,7 +743,7 @@ const ResultChart = ({ sim }: { sim: SimulationResult | null }) => {
                         />
                         <YAxis 
                             tick={{fontSize: 10, fill: '#9ca3af'}}
-                            width={35}
+                            width={45}
                             axisLine={false}
                             tickLine={false}
                         />
@@ -599,6 +758,11 @@ const ResultChart = ({ sim }: { sim: SimulationResult | null }) => {
                         <Area type="monotone" dataKey="conc" stroke="#ec4899" strokeWidth={3} fillOpacity={1} fill="url(#colorConc)" activeDot={{ r: 6, strokeWidth: 0 }} />
                     </ComposedChart>
                 </ResponsiveContainer>
+            </div>
+            
+            {/* Visual hint for zoom availability (fades out) */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover:opacity-10 transition-opacity duration-500">
+                <ZoomIn className="w-16 h-16 text-gray-300" />
             </div>
         </div>
     );
