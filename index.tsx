@@ -129,6 +129,7 @@ const TRANSLATIONS = {
         "gel.site.thigh": "大腿 (Thigh)",
         "gel.site.scrotal": "阴囊 (Scrotal)",
         "beta.gel": "Beta：凝胶生物利用率数据有限，数值为近似估计。",
+        "gel.site_disabled": "涂抹部位选择仍在开发中，当前暂不可用。",
         "beta.patch": "Beta：贴片参数为近似值，请记录贴上与移除时间。",
         "beta.patch_remove": "记录移除时间即可，剂量会自动按贴片佩戴时长计算。",
         "route.patchApply": "贴片贴上 (Beta)",
@@ -252,6 +253,7 @@ const TRANSLATIONS = {
         "gel.site.thigh": "Thigh",
         "gel.site.scrotal": "Scrotal",
         "beta.gel": "Beta: gel bioavailability is approximate; data limited.",
+        "gel.site_disabled": "Application site selection is still in development and temporarily disabled.",
         "beta.patch": "Beta: patch parameters are approximate. Log both apply and removal times.",
         "beta.patch_remove": "Just record the removal time; dose is derived from wear duration.",
         "route.patchApply": "Patch Apply (Beta)",
@@ -381,6 +383,7 @@ const TRANSLATIONS = {
         "gel.site.thigh": "Бедро (Thigh)",
         "gel.site.scrotal": "Мошонка (Scrotal)",
         "beta.gel": "Beta: биодоступность геля приблизительная, данных мало.",
+        "gel.site_disabled": "Выбор места нанесения в разработке и временно недоступен.",
         "beta.patch": "Beta: параметры пластыря приблизительны. Отмечайте время наклеивания и снятия.",
         "beta.patch_remove": "Достаточно указать время снятия — доза вычислится по времени ношения.",
         "route.patchApply": "Пластырь (Наложение) Beta",
@@ -999,7 +1002,7 @@ const DoseFormModal = ({ isOpen, onClose, eventToEdit, onSave }: any) => {
                                 type="datetime-local" 
                                 value={dateStr} 
                                 onChange={e => setDateStr(e.target.value)} 
-                                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-300 focus:border-transparent outline-none font-medium text-gray-800"
+                                className="w-full max-w-full min-w-0 p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-300 focus:border-transparent outline-none font-medium text-gray-800 text-sm"
                             />
                             <Calendar className="absolute right-4 top-4 text-gray-400 pointer-events-none" size={20} />
                         </div>
@@ -1041,15 +1044,10 @@ const DoseFormModal = ({ isOpen, onClose, eventToEdit, onSave }: any) => {
                             {/* Gel Site Selector */}
                             {route === Route.gel && (
                                 <div className="mb-4 space-y-2">
-                                    <CustomSelect
-                                        label={t('field.gel_site')}
-                                        value={gelSite.toString()}
-                                        onChange={(val) => setGelSite(parseInt(val))}
-                                        options={GEL_SITE_ORDER.map((site, idx) => ({
-                                            value: idx.toString(),
-                                            label: t(`gel.site.${site}`)
-                                        }))}
-                                    />
+                                    <label className="block text-sm font-bold text-gray-700">{t('field.gel_site')}</label>
+                                    <div className="p-4 bg-gray-50 border border-dashed border-gray-200 rounded-xl text-gray-400 text-sm font-medium select-none">
+                                        {t('gel.site_disabled')}
+                                    </div>
                                     <div className="text-xs text-amber-700 bg-amber-50 border border-amber-100 p-3 rounded-xl">
                                         {t('beta.gel')}
                                     </div>

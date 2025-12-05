@@ -60,7 +60,7 @@ export interface SimulationResult {
 export const CorePK = {
     vdPerKG: 2.0, // L/kg
     kClear: 0.41,
-    kClearInjection: 0.41, // Unified with kClear to ensure consistent AUC comparisons
+    kClearInjection: 0.041,
     depotK1Corr: 1.0
 };
 
@@ -166,8 +166,7 @@ interface PKParams {
 }
 
 function resolveParams(event: DoseEvent): PKParams {
-    // Unified k3 (Clearance) for all routes to ensure consistent AUC comparison
-    const k3 = CorePK.kClear; 
+    const k3 = event.route === Route.injection ? CorePK.kClearInjection : CorePK.kClear;
     const toE2 = getToE2Factor(event.ester);
 
     switch (event.route) {
@@ -191,13 +190,9 @@ function resolveParams(event: DoseEvent): PKParams {
             }
         }
         case Route.gel: {
-            // Simplified Gel Logic from Swift file
-            const siteIdx = Math.min(GEL_SITE_ORDER.length - 1, Math.max(0, Math.round(event.extras[ExtraKey.gelSite] ?? 0)));
-            // @ts-ignore
-            const siteKey = GEL_SITE_ORDER[siteIdx] || GelSite.arm;
-            const bio = GelSiteParams[siteKey] ?? 0.05;
-            
-            return { Frac_fast: 1.0, k1_fast: 0.022, k1_slow: 0, k2: 0, k3, F: bio * toE2, rateMGh: 0, F_fast: bio * toE2, F_slow: bio * toE2 };
+            // Use backup gel logic (fixed bioavailability)
+            const bio = 0.05;
+            return { Frac_fast: 1.0, k1_fast: 0.022, k1_slow: 0, k2: 0, k3, F: bio, rateMGh: 0, F_fast: bio, F_slow: bio };
         }
         case Route.oral: {
             const k1Value = event.ester === Ester.EV ? OralPK.kAbsEV : OralPK.kAbsE2;
@@ -275,16 +270,11 @@ class PrecomputedEventModel {
                 this.model = (timeH: number) => {
                     const tau = timeH - startTime;
                     if (tau < 0) return 0;
-                    const doseFast = dose * params.Frac_fast;
-                    const doseSlow = dose * (1.0 - params.Frac_fast);
-                    
-                    // If k2 <= 0 (e.g. E2 injection), use 1-compartment model
-                    if (params.k2 <= 0) {
-                        return oneCompAmount(tau, doseFast, params) + oneCompAmount(tau, doseSlow, params);
-                    }
+                         const doseFast = dose * params.Frac_fast;
+                         const doseSlow = dose * (1.0 - params.Frac_fast);
 
-                    return _analytic3C(tau, doseFast, params.F, params.k1_fast, params.k2, params.k3) +
-                           _analytic3C(tau, doseSlow, params.F, params.k1_slow, params.k2, params.k3);
+                         return _analytic3C(tau, doseFast, params.F, params.k1_fast, params.k2, params.k3) +
+                             _analytic3C(tau, doseSlow, params.F, params.k1_slow, params.k2, params.k3);
                 };
                 break;
             case Route.gel:
