@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/1",
+  "package": {
+    "productName": "Oyama's HRT Tracker",
+    "version": "1.1.1"
+  },
+  "build": {
+    "beforeDevCommand": "npm run dev -- --host",
+    "devPath": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build",
+    "distDir": "../dist"
+  },
+  "tauri": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Oyama's HRT Tracker",
+        "width": 420,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "bundle": {
+      "active": true,
+      "identifier": "com.smirnovayama.hrttracker",
+      "icon": [
+        "icons/icon.png"
+      ],
+      "targets": [
+        "dmg",
+        "app"
+      ]
+    },
+    "security": {
+      "csp": null
+    },
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      }
+    },
+    "updater": {
+      "active": false
+    }
+  }
+}
