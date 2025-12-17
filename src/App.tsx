@@ -49,6 +49,7 @@ const AppContent = () => {
         { value: 'zh-TW', label: '正體中文', icon: <span className="text-lg" role="img" aria-label="TW">🤔</span> },
         { value: 'yue', label: '廣東話', icon: <span className="text-lg" role="img" aria-label="HK">🇭🇰</span> },
         { value: 'en', label: 'English', icon: <span className="text-lg" role="img" aria-label="US">🇺🇸</span> },
+        { value: 'ja', label: '日本語', icon: <span className="text-lg" role="img" aria-label="JP">🇯🇵</span> },
         { value: 'ru', label: 'Русский', icon: <span className="text-lg" role="img" aria-label="RU">🇷🇺</span> },
         { value: 'uk', label: 'Українська', icon: <span className="text-lg" role="img" aria-label="UA">🇺🇦</span> },
     ]), []);
