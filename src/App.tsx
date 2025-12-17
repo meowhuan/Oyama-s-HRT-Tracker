@@ -15,6 +15,13 @@ import ExportModal from './components/ExportModal';
 import PasswordDisplayModal from './components/PasswordDisplayModal';
 import PasswordInputModal from './components/PasswordInputModal';
 import CustomSelect from './components/CustomSelect';
+import flagCN from './flag_svg/🇨🇳.svg';
+import flagTW from './flag_svg/🇹🇼.svg';
+import flagHK from './flag_svg/🇭🇰.svg';
+import flagUS from './flag_svg/🇺🇸.svg';
+import flagJP from './flag_svg/🇯🇵.svg';
+import flagRU from './flag_svg/🇷🇺.svg';
+import flagUA from './flag_svg/🇺🇦.svg';
 
 const AppContent = () => {
     const { t, lang, setLang } = useTranslation();
@@ -41,18 +48,30 @@ const AppContent = () => {
     const [isPasswordDisplayOpen, setIsPasswordDisplayOpen] = useState(false);
     const [isPasswordInputOpen, setIsPasswordInputOpen] = useState(false);
 
-    const [currentView, setCurrentView] = useState<'home' | 'history' | 'settings'>('home');
+    type ViewKey = 'home' | 'history' | 'settings';
+    const viewOrder: ViewKey[] = ['home', 'history', 'settings'];
+
+    const [currentView, setCurrentView] = useState<ViewKey>('home');
+    const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
     const mainScrollRef = useRef<HTMLDivElement>(null);
 
     const languageOptions = useMemo(() => ([
-        { value: 'zh', label: '简体中文', icon: <span className="text-lg" role="img" aria-label="CN">🇨🇳</span> },
-        { value: 'zh-TW', label: '正體中文', icon: <span className="text-lg" role="img" aria-label="TW">🤔</span> },
-        { value: 'yue', label: '廣東話', icon: <span className="text-lg" role="img" aria-label="HK">🇭🇰</span> },
-        { value: 'en', label: 'English', icon: <span className="text-lg" role="img" aria-label="US">🇺🇸</span> },
-        { value: 'ja', label: '日本語', icon: <span className="text-lg" role="img" aria-label="JP">🇯🇵</span> },
-        { value: 'ru', label: 'Русский', icon: <span className="text-lg" role="img" aria-label="RU">🇷🇺</span> },
-        { value: 'uk', label: 'Українська', icon: <span className="text-lg" role="img" aria-label="UA">🇺🇦</span> },
+        { value: 'zh', label: '简体中文', icon: <img src={flagCN} alt="CN" className="w-5 h-5 rounded-sm object-contain" /> },
+        { value: 'zh-TW', label: '正體中文（中国台湾）', icon: <img src={flagTW} alt="TW" className="w-5 h-5 rounded-sm object-contain" /> },
+        { value: 'yue', label: '廣東話', icon: <img src={flagHK} alt="HK" className="w-5 h-5 rounded-sm object-contain" /> },
+        { value: 'en', label: 'English', icon: <img src={flagUS} alt="US" className="w-5 h-5 rounded-sm object-contain" /> },
+        { value: 'ja', label: '日本語', icon: <img src={flagJP} alt="JP" className="w-5 h-5 rounded-sm object-contain" /> },
+        { value: 'ru', label: 'Русский', icon: <img src={flagRU} alt="RU" className="w-5 h-5 rounded-sm object-contain" /> },
+        { value: 'uk', label: 'Українська', icon: <img src={flagUA} alt="UA" className="w-5 h-5 rounded-sm object-contain" /> },
     ]), []);
+
+    const handleViewChange = (view: ViewKey) => {
+        if (view === currentView) return;
+        const currentIndex = viewOrder.indexOf(currentView);
+        const nextIndex = viewOrder.indexOf(view);
+        setTransitionDirection(nextIndex >= currentIndex ? 'forward' : 'backward');
+        setCurrentView(view);
+    };
 
     useEffect(() => {
         const shouldLock = isExportModalOpen || isPasswordDisplayOpen || isPasswordInputOpen || isWeightModalOpen || isFormOpen || isImportModalOpen;
@@ -72,7 +91,7 @@ const AppContent = () => {
     // Reset scroll when switching tabs to avoid carrying over deep scroll positions
     useEffect(() => {
         const el = mainScrollRef.current;
-        if (el) el.scrollTo({ top: 0, behavior: 'auto' });
+        if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
     }, [currentView]);
 
     useEffect(() => {
@@ -101,7 +120,9 @@ const AppContent = () => {
         return groups;
     }, [events, lang]);
 
-    const navItems = useMemo(() => ([
+    type NavItem = { id: ViewKey; label: string; icon: React.ReactElement; };
+
+    const navItems = useMemo<NavItem[]>(() => ([
         { id: 'home', label: t('nav.home'), icon: <Activity size={16} /> },
         { id: 'history', label: t('nav.history'), icon: <Calendar size={16} /> },
         { id: 'settings', label: t('nav.settings'), icon: <Settings size={16} /> },
@@ -301,7 +322,7 @@ const AppContent = () => {
                         {navItems.map(item => (
                             <button
                                 key={item.id}
-                                onClick={() => setCurrentView(item.id as 'home' | 'history' | 'settings')}
+                                onClick={() => handleViewChange(item.id)}
                                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-semibold transition ${
                                     currentView === item.id
                                         ? 'bg-gray-900 text-white border-gray-900'
@@ -329,205 +350,209 @@ const AppContent = () => {
                     </div>
                 </div>
 
-                {/* Header */}
-                {currentView === 'home' && (
-                    <header className="relative px-4 md:px-8 pt-6 pb-4">
-                        <div className="grid md:grid-cols-3 gap-3 md:gap-4">
-                            <div className="md:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm px-5 py-5 flex items-start justify-between">
-                                <div className="space-y-2">
-                                    <h1 className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 text-[11px] md:text-xs font-semibold text-gray-700 border border-gray-200">
-                                        <Activity size={14} className="text-gray-500" />
-                                        {t('status.estimate')}
-                                    </h1>
-                                    <div className="flex items-end gap-2">
-                                        <span className="text-6xl md:text-7xl font-black text-gray-900 tracking-tight">
-                                            {currentLevel.toFixed(0)}
-                                        </span>
-                                        <span className="text-lg md:text-xl font-bold text-gray-400">pg/mL</span>
-                                    </div>
-                                </div>
-                                <div className="text-right text-xs font-semibold text-gray-500 space-y-1 md:hidden">
-                                    <div className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-200 inline-flex items-center gap-2">
-                                        <Calendar size={14} className="text-gray-500" />
-                                        <span className="text-xs md:text-sm">{formatDate(currentTime, lang)}</span>
-                                    </div>
-                                    <div className="font-mono text-gray-700">{formatTime(currentTime)}</div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
-                                <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm">
-                                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-200">
-                                        <Activity size={18} className="text-gray-600" />
-                                    </div>
-                                    <div className="leading-tight">
-                                        <p className="text-[11px] md:text-xs font-semibold text-gray-500">{t('timeline.title')}</p>
-                                        <p className="text-lg md:text-xl font-bold text-gray-900">{events.length || 0}</p>
-                                    </div>
-                                </div>
-                                <button
-                                    onClick={() => setIsWeightModalOpen(true)}
-                                    className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-gray-300 transition text-left"
-                                >
-                                    <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-200">
-                                        <Settings size={18} className="text-gray-700" />
-                                    </div>
-                                    <div className="leading-tight">
-                                        <p className="text-[11px] md:text-xs font-semibold text-gray-500">{t('status.weight')}</p>
-                                        <p className="text-lg md:text-xl font-bold text-gray-900">{weight} kg</p>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
-                    </header>
-                )}
-
-                <main ref={mainScrollRef} className="flex-1 overflow-y-auto bg-white w-full scrollbar-hide px-4 py-6">
-                    {/* Chart */}
+                <div
+                    key={currentView}
+                    className={`flex-1 flex flex-col overflow-hidden page-transition ${transitionDirection === 'forward' ? 'page-forward' : 'page-backward'}`}
+                >
+                    {/* Header */}
                     {currentView === 'home' && (
-                        <ResultChart 
-                            sim={simulation} 
-                            events={events}
-                            onPointClick={handleEditEvent}
-                        />
-                    )}
-
-                    {/* Timeline */}
-                    {currentView === 'history' && (
-                        <div className="relative space-y-5 pt-6 pb-16">
-                            <div className="px-4">
-                                <div className="w-full p-4 rounded-2xl bg-white flex items-center justify-between shadow-sm">
-                                    <h2 className="text-xl font-semibold text-gray-900 tracking-tight flex items-center gap-3">
-                                       <Activity size={22} className="text-[#f6c4d7]" /> {t('timeline.title')}
-                                    </h2>
+                        <header className="relative px-4 md:px-8 pt-6 pb-4">
+                            <div className="grid md:grid-cols-3 gap-3 md:gap-4">
+                                <div className="md:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm px-5 py-5 flex items-start justify-between">
+                                    <div className="space-y-2">
+                                        <h1 className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-50 text-[11px] md:text-xs font-semibold text-gray-700 border border-gray-200">
+                                            <Activity size={14} className="text-gray-500" />
+                                            {t('status.estimate')}
+                                        </h1>
+                                        <div className="flex items-end gap-2">
+                                            <span className="text-6xl md:text-7xl font-black text-gray-900 tracking-tight">
+                                                {currentLevel.toFixed(0)}
+                                            </span>
+                                            <span className="text-lg md:text-xl font-bold text-gray-400">pg/mL</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right text-xs font-semibold text-gray-500 space-y-1 md:hidden">
+                                        <div className="px-3 py-1 rounded-lg bg-gray-50 border border-gray-200 inline-flex items-center gap-2">
+                                            <Calendar size={14} className="text-gray-500" />
+                                            <span className="text-xs md:text-sm">{formatDate(currentTime, lang)}</span>
+                                        </div>
+                                        <div className="font-mono text-gray-700">{formatTime(currentTime)}</div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-1 gap-3">
+                                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm">
+                                        <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-200">
+                                            <Activity size={18} className="text-gray-600" />
+                                        </div>
+                                        <div className="leading-tight">
+                                            <p className="text-[11px] md:text-xs font-semibold text-gray-500">{t('timeline.title')}</p>
+                                            <p className="text-lg md:text-xl font-bold text-gray-900">{events.length || 0}</p>
+                                        </div>
+                                    </div>
                                     <button
-                                        onClick={handleAddEvent}
-                                        className="inline-flex md:hidden items-center justify-center gap-2 px-3.5 py-2 h-11 rounded-xl bg-gray-900 text-white text-sm font-bold shadow-sm hover:shadow-md transition"
+                                        onClick={() => setIsWeightModalOpen(true)}
+                                        className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm hover:border-gray-300 transition text-left"
                                     >
-                                        <Plus size={16} />
-                                        <span>{t('btn.add')}</span>
+                                        <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center border border-gray-200">
+                                            <Settings size={18} className="text-gray-700" />
+                                        </div>
+                                        <div className="leading-tight">
+                                            <p className="text-[11px] md:text-xs font-semibold text-gray-500">{t('status.weight')}</p>
+                                            <p className="text-lg md:text-xl font-bold text-gray-900">{weight} kg</p>
+                                        </div>
                                     </button>
                                 </div>
                             </div>
+                        </header>
+                    )}
 
-                            {Object.keys(groupedEvents).length === 0 && (
-                                <div className="mx-4 text-center py-12 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200 shadow-sm">
-                                   <p>{t('timeline.empty')}</p>
-                                </div>
-                            )}
+                    <main ref={mainScrollRef} className="flex-1 overflow-y-auto bg-white w-full scrollbar-hide px-4 py-6">
+                        {/* Chart */}
+                        {currentView === 'home' && (
+                            <ResultChart 
+                                sim={simulation} 
+                                events={events}
+                                onPointClick={handleEditEvent}
+                            />
+                        )}
 
-                            {Object.entries(groupedEvents).map(([date, items]) => (
-                                <div key={date} className="relative mx-4 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                                    <div className="sticky top-0 bg-white/95 backdrop-blur py-3 px-4 z-0 flex items-center gap-2 border-b border-gray-100">
-                                        <div className="w-2 h-2 rounded-full bg-pink-200"></div>
-                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{date}</span>
+                        {/* Timeline */}
+                        {currentView === 'history' && (
+                            <div className="relative space-y-5 pt-6 pb-16">
+                                <div className="px-4">
+                                    <div className="w-full p-4 rounded-2xl bg-white flex items-center justify-between shadow-sm">
+                                        <h2 className="text-xl font-semibold text-gray-900 tracking-tight flex items-center gap-3">
+                                        <Activity size={22} className="text-[#f6c4d7]" /> {t('timeline.title')}
+                                        </h2>
+                                        <button
+                                            onClick={handleAddEvent}
+                                            className="inline-flex md:hidden items-center justify-center gap-2 px-3.5 py-2 h-11 rounded-xl bg-gray-900 text-white text-sm font-bold shadow-sm hover:shadow-md transition"
+                                        >
+                                            <Plus size={16} />
+                                            <span>{t('btn.add')}</span>
+                                        </button>
                                     </div>
-                                    <div className="divide-y divide-gray-100">
-                                        {(items as DoseEvent[]).map(ev => (
-                                            <div 
-                                                key={ev.id} 
-                                                onClick={() => handleEditEvent(ev)}
-                                                className="p-4 flex items-center gap-4 hover:bg-gray-50 transition-all cursor-pointer group relative"
-                                            >
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${ev.route === Route.injection ? 'bg-pink-50' : 'bg-gray-50'} border border-gray-100`}>
-                                                    {getRouteIcon(ev.route)}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="font-bold text-gray-900 text-sm truncate">
-                                                            {ev.route === Route.patchRemove ? t('route.patchRemove') : t(`ester.${ev.ester}`)}
-                                                        </span>
-                                                        <span className="font-mono text-[11px] font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
-                                                            {formatTime(new Date(ev.timeH * 3600000))}
-                                                        </span>
+                                </div>
+
+                                {Object.keys(groupedEvents).length === 0 && (
+                                    <div className="mx-4 text-center py-12 text-gray-400 bg-white rounded-3xl border border-dashed border-gray-200 shadow-sm">
+                                    <p>{t('timeline.empty')}</p>
+                                    </div>
+                                )}
+
+                                {Object.entries(groupedEvents).map(([date, items]) => (
+                                    <div key={date} className="relative mx-4 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                                        <div className="sticky top-0 bg-white/95 backdrop-blur py-3 px-4 z-0 flex items-center gap-2 border-b border-gray-100">
+                                            <div className="w-2 h-2 rounded-full bg-pink-200"></div>
+                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{date}</span>
+                                        </div>
+                                        <div className="divide-y divide-gray-100">
+                                            {(items as DoseEvent[]).map(ev => (
+                                                <div 
+                                                    key={ev.id} 
+                                                    onClick={() => handleEditEvent(ev)}
+                                                    className="p-4 flex items-center gap-4 hover:bg-gray-50 transition-all cursor-pointer group relative"
+                                                >
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${ev.route === Route.injection ? 'bg-pink-50' : 'bg-gray-50'} border border-gray-100`}>
+                                                        {getRouteIcon(ev.route)}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 font-medium space-y-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="truncate">{t(`route.${ev.route}`)}</span>
-                                                            {ev.extras[ExtraKey.releaseRateUGPerDay] && (
-                                                                <>
-                                                                    <span className="text-gray-300">•</span>
-                                                                    <span className="text-gray-700">{`${ev.extras[ExtraKey.releaseRateUGPerDay]} µg/d`}</span>
-                                                                </>
-                                                            )}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="font-bold text-gray-900 text-sm truncate">
+                                                                {ev.route === Route.patchRemove ? t('route.patchRemove') : t(`ester.${ev.ester}`)}
+                                                            </span>
+                                                            <span className="font-mono text-[11px] font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                                                                {formatTime(new Date(ev.timeH * 3600000))}
+                                                            </span>
                                                         </div>
-                                                        {ev.route !== Route.patchRemove && !ev.extras[ExtraKey.releaseRateUGPerDay] && (
-                                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-700">
-                                                                <span>{`${t('timeline.dose_label')}: ${ev.doseMG.toFixed(2)} mg`}</span>
-                                                                {ev.ester !== Ester.E2 && (
-                                                                    <span className="text-gray-500 text-[11px]">
-                                                                        {`(${ (ev.doseMG * getToE2Factor(ev.ester)).toFixed(2) } mg E2)`}
-                                                                    </span>
+                                                        <div className="text-xs text-gray-500 font-medium space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="truncate">{t(`route.${ev.route}`)}</span>
+                                                                {ev.extras[ExtraKey.releaseRateUGPerDay] && (
+                                                                    <>
+                                                                        <span className="text-gray-300">•</span>
+                                                                        <span className="text-gray-700">{`${ev.extras[ExtraKey.releaseRateUGPerDay]} µg/d`}</span>
+                                                                    </>
                                                                 )}
                                                             </div>
-                                                        )}
+                                                            {ev.route !== Route.patchRemove && !ev.extras[ExtraKey.releaseRateUGPerDay] && (
+                                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-gray-700">
+                                                                    <span>{`${t('timeline.dose_label')}: ${ev.doseMG.toFixed(2)} mg`}</span>
+                                                                    {ev.ester !== Ester.E2 && (
+                                                                        <span className="text-gray-500 text-[11px]">
+                                                                            {`(${ (ev.doseMG * getToE2Factor(ev.ester)).toFixed(2) } mg E2)`}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                                
+                            </div>
+                        )}
+
+                        {/* Settings */}
+                        {currentView === 'settings' && (
+                            <div className="relative space-y-5 pt-6 pb-8">
+                                <div className="px-4">
+                                    <div className="w-full p-4 rounded-2xl bg-white flex items-center justify-between shadow-sm">
+                                        <h2 className="text-xl font-semibold text-gray-900 tracking-tight flex items-center gap-3">
+                                            <Settings size={22} className="text-[#f6c4d7]" /> {t('nav.settings')}
+                                        </h2>
+                                        <div className="min-w-[136px] h-11" />
+                                    </div>
+                                </div>
+
+                                {/* General Settings */}
+                                <div className="space-y-2">
+                                    <h3 className="px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('settings.group.general')}</h3>
+                                    <div className="mx-4 w-auto p-4 rounded-2xl border border-gray-200 bg-white space-y-3 shadow-sm">
+                                        <div className="flex items-start gap-3">
+                                            <Languages className="text-blue-500" size={20} />
+                                            <div className="text-left">
+                                                <p className="font-bold text-gray-900 text-sm">{t('drawer.lang')}</p>
+                                                <p className="text-xs text-gray-500">{t('drawer.lang_hint')}</p>
                                             </div>
-                                        ))}
+                                            <div className="ml-auto text-xs font-bold text-gray-500">{lang.toUpperCase()}</div>
+                                        </div>
+                                        <CustomSelect
+                                            value={lang}
+                                            onChange={(val) => setLang(val as Lang)}
+                                            options={languageOptions}
+                                        />
                                     </div>
                                 </div>
-                            ))}
-                            
-                        </div>
-                    )}
 
-                    {/* Settings */}
-                    {currentView === 'settings' && (
-                        <div className="relative space-y-5 pt-6 pb-8">
-                            <div className="px-4">
-                                <div className="w-full p-4 rounded-2xl bg-white flex items-center justify-between shadow-sm">
-                                    <h2 className="text-xl font-semibold text-gray-900 tracking-tight flex items-center gap-3">
-                                        <Settings size={22} className="text-[#f6c4d7]" /> {t('nav.settings')}
-                                    </h2>
-                                    <div className="min-w-[136px] h-11" />
-                                </div>
-                            </div>
+                                {/* Data Management */}
+                                <div className="space-y-2">
+                                    <h3 className="px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('settings.group.data')}</h3>
+                                    <div className="mx-4 bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100 overflow-hidden">
+                                        <button
+                                            onClick={() => setIsImportModalOpen(true)}
+                                            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-teal-50 transition text-left"
+                                        >
+                                            <Upload className="text-teal-500" size={20} />
+                                            <div className="text-left">
+                                                <p className="font-bold text-gray-900 text-sm">{t('import.title')}</p>
+                                                <p className="text-xs text-gray-500">{t('drawer.import_hint')}</p>
+                                            </div>
+                                        </button>
 
-                            {/* General Settings */}
-                            <div className="space-y-2">
-                                <h3 className="px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('settings.group.general')}</h3>
-                                <div className="mx-4 w-auto p-4 rounded-2xl border border-gray-200 bg-white space-y-3 shadow-sm">
-                                    <div className="flex items-start gap-3">
-                                        <Languages className="text-blue-500" size={20} />
-                                        <div className="text-left">
-                                            <p className="font-bold text-gray-900 text-sm">{t('drawer.lang')}</p>
-                                            <p className="text-xs text-gray-500">{t('drawer.lang_hint')}</p>
-                                        </div>
-                                        <div className="ml-auto text-xs font-bold text-gray-500">{lang.toUpperCase()}</div>
-                                    </div>
-                                    <CustomSelect
-                                        value={lang}
-                                        onChange={(val) => setLang(val as Lang)}
-                                        options={languageOptions}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Data Management */}
-                            <div className="space-y-2">
-                                <h3 className="px-5 text-xs font-bold text-gray-400 uppercase tracking-wider">{t('settings.group.data')}</h3>
-                                <div className="mx-4 bg-white rounded-2xl border border-gray-200 shadow-sm divide-y divide-gray-100 overflow-hidden">
-                                    <button
-                                        onClick={() => setIsImportModalOpen(true)}
-                                        className="w-full flex items-center gap-3 px-4 py-4 hover:bg-teal-50 transition text-left"
-                                    >
-                                        <Upload className="text-teal-500" size={20} />
-                                        <div className="text-left">
-                                            <p className="font-bold text-gray-900 text-sm">{t('import.title')}</p>
-                                            <p className="text-xs text-gray-500">{t('drawer.import_hint')}</p>
-                                        </div>
-                                    </button>
-
-                                    <button
-                                        onClick={handleSaveDosages}
-                                        className="w-full flex items-center gap-3 px-4 py-4 hover:bg-pink-50 transition text-left"
-                                    >
-                                        <Download className="text-pink-400" size={20} />
-                                        <div className="text-left">
-                                            <p className="font-bold text-gray-900 text-sm">{t('export.title')}</p>
-                                            <p className="text-xs text-gray-500">{t('drawer.save_hint')}</p>
-                                        </div>
-                                    </button>
+                                        <button
+                                            onClick={handleSaveDosages}
+                                            className="w-full flex items-center gap-3 px-4 py-4 hover:bg-pink-50 transition text-left"
+                                        >
+                                            <Download className="text-pink-400" size={20} />
+                                            <div className="text-left">
+                                                <p className="font-bold text-gray-900 text-sm">{t('export.title')}</p>
+                                                <p className="text-xs text-gray-500">{t('drawer.save_hint')}</p>
+                                            </div>
+                                        </button>
 
                                     <button
                                         onClick={handleQuickExport}
@@ -600,11 +625,13 @@ const AppContent = () => {
                     )}
                 </main>
 
+                </div>
+
                 {/* Bottom Navigation - mobile only */}
                 <nav className="px-4 pb-4 pt-2 bg-transparent z-20 safe-area-pb shrink-0 md:hidden">
                     <div className="w-full bg-white/70 backdrop-blur-lg border border-white/40 rounded-3xl px-3 py-3 flex items-center justify-between gap-2">
                         <button
-                            onClick={() => setCurrentView('home')}
+                            onClick={() => handleViewChange('home')}
                             className={`flex-1 flex flex-col items-center gap-1 rounded-2xl py-2 transition-all border-2 ${
                                 currentView === 'home'
                                     ? 'bg-white text-[#8a3459] border-[#f6c4d7]'
@@ -615,7 +642,7 @@ const AppContent = () => {
                             <span className="text-[11px] font-semibold">{t('nav.home')}</span>
                         </button>
                         <button
-                            onClick={() => setCurrentView('history')}
+                            onClick={() => handleViewChange('history')}
                             className={`flex-1 flex flex-col items-center gap-1 rounded-2xl py-2 transition-all border-2 ${
                                 currentView === 'history'
                                     ? 'bg-white text-[#8a3459] border-[#f6c4d7]'
@@ -626,7 +653,7 @@ const AppContent = () => {
                             <span className="text-[11px] font-semibold">{t('nav.history')}</span>
                         </button>
                         <button
-                            onClick={() => setCurrentView('settings')}
+                            onClick={() => handleViewChange('settings')}
                             className={`flex-1 flex flex-col items-center gap-1 rounded-2xl py-2 transition-all border-2 ${
                                 currentView === 'settings'
                                     ? 'bg-white text-[#8a3459] border-[#f6c4d7]'
