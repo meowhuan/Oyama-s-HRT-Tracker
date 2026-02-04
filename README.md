@@ -60,20 +60,26 @@ HRT Recorder Web 是一个用于记录与估算雌二醇（E2）血药浓度的�
 本项目的药代动力学实现参考并对齐于 `HRT-Recorder-PKcomponent-Test` 中的模型。
 
 ### 快速开始
-前端：
+前端（开发）:
 ```bash
 npm install
 npm run dev
 ```
 
-后端（可选）:
+构建并由后端托管（生产打包）:
+```bash
+npm install
+npm run build:backend   # 运行 `vite build` 并复制 dist 到 backend/dist
+```
+
+后端（可选，本地运行）:
 ```powershell
 cd backend
 npm install
-node index.js
+npm run start   # 或 node src/index.js
 ```
 
-后端默认运行在 `http://localhost:4000`，前端默认连接此地址。
+后端默认运行在 `http://localhost:4000`，若已用 `build:backend` 则前端会由后端静态托管。
 
 ### 部署与托管
 
@@ -141,9 +147,11 @@ node change_admin_password.js --username admin --password YourNewPassword
 - 若首次运行创建了引导管理员，会在 `backend/backend_admin_bootstrap.txt` 写入初始信息；请在记录凭据后立即删除或更改密码以降低泄露风险。
 
 ### TUDO(大概率咕咕)
-- 2FA（TOTP）支持：已留存数据库列，但前端/后端的完整流程尚未实现
-- 审计日志与更严格的数据合规流程（例如导出/删除操作的审计记录）
-- 修复admin页面的记录显示
+- 修复覆盖上传（overwrite）流程，避免重复或多余的云端记录产生。
+- 完善 `Admin` 页面中记录的展示、分页与过滤功能。
+- 实现 2FA（TOTP）完整前后端流程及恢复机制。
+- 为导出/删除等敏感操作添加审计日志与回滚/导出证据。
+- 优化 PWA/Service Worker 的发布缓存策略，避免开发与生产缓存冲突。
 
 ### 说明
 - 该项目的初衷是跨设备同步数据
