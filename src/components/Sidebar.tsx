@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { formatDate, formatTime } from '../utils/helpers';
 import { Lang } from '../i18n/translations';
 
@@ -23,6 +23,8 @@ interface SidebarProps {
     currentTime: Date;
     lang: Lang;
     t: (key: string) => string;
+    mobile?: boolean;
+    onClose?: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -31,8 +33,65 @@ const Sidebar: React.FC<SidebarProps> = ({
     onViewChange,
     currentTime,
     lang,
-    t
+    t,
+    mobile,
+    onClose
 }) => {
+    if (mobile) {
+        return (
+            <div className="md:hidden fixed inset-0 z-50 bg-black/40">
+                <nav className="fixed left-0 top-0 bottom-0 w-72 bg-white dark:bg-zinc-950 border-r border-zinc-100 dark:border-zinc-900 p-4 overflow-y-auto">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-md overflow-hidden bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
+                                <img src="/favicon.ico" alt="HRT Tracker" className="w-full h-full object-cover" />
+                            </div>
+                            <div>
+                                <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">HRT Tracker</h1>
+                                <span className="text-xs text-zinc-400 dark:text-zinc-500">Dashboard</span>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900">
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                        {navItems.map(item => {
+                            const isActive = currentView === item.id;
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => { onViewChange(item.id); onClose && onClose(); }}
+                                    className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative
+                                        ${isActive
+                                            ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                                            : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-900'
+                                        }`}
+                                >
+                                    <span className={`transition-colors duration-200 ${isActive ? 'text-white dark:text-zinc-900' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                                        {React.cloneElement(item.icon, { size: 18, strokeWidth: isActive ? 2.5 : 2 })}
+                                    </span>
+                                    <span>{item.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-6 p-3 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800/50">
+                        <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 leading-none select-none tabular-nums">
+                            {formatTime(currentTime)}
+                        </div>
+                        <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800 my-3"></div>
+                        <div className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest select-none">
+                            {formatDate(currentTime, lang)}
+                        </div>
+                    </div>
+                </nav>
+            </div>
+        );
+    }
+
     return (
         <nav className="hidden md:flex flex-col w-[280px] h-full bg-white dark:bg-zinc-950 border-r border-zinc-100 dark:border-zinc-900 shrink-0 transition-colors duration-300">
             {/* Logo Area */}

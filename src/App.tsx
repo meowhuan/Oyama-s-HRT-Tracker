@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Activity, Calendar, FlaskConical, Settings as SettingsIcon, User } from 'lucide-react';
+import { Activity, Calendar, FlaskConical, Settings as SettingsIcon, User, Menu } from 'lucide-react';
 import { useTranslation, LanguageProvider } from './contexts/LanguageContext';
 import { useDialog, DialogProvider } from './contexts/DialogContext';
 import { APP_VERSION } from './constants';
@@ -94,6 +94,7 @@ const AppContent = () => {
         }
     }, [theme]);
     const [isDisclaimerOpen, setIsDisclaimerOpen] = useState(false);
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const [isLabModalOpen, setIsLabModalOpen] = useState(false);
     const [editingLab, setEditingLab] = useState<LabResult | null>(null);
 
@@ -626,7 +627,27 @@ const AppContent = () => {
                 lang={lang}
                 t={t}
             />
+            {/* Mobile sidebar drawer */}
+            {isMobileNavOpen && (
+                <Sidebar
+                    navItems={navItems}
+                    currentView={currentView}
+                    onViewChange={handleViewChange}
+                    currentTime={currentTime}
+                    lang={lang}
+                    t={t}
+                    mobile
+                    onClose={() => setIsMobileNavOpen(false)}
+                />
+            )}
             <div className="flex-1 flex flex-col overflow-hidden w-full bg-zinc-50/50 dark:bg-black relative transition-colors duration-300">
+                {/* Mobile header with hamburger */}
+                <div className="md:hidden flex items-center justify-between px-4 py-2 safe-area-pt bg-transparent z-20">
+                    <button className="p-2 rounded-md" onClick={() => setIsMobileNavOpen(true)}>
+                        <Menu size={20} />
+                    </button>
+                    <div />
+                </div>
 
                 <div
                     ref={mainScrollRef}

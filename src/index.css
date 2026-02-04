@@ -78,3 +78,31 @@ body {
 
 .page-transition.page-forward { animation-name: pageForward; }
 .page-transition.page-backward { animation-name: pageBackward; }
+
+/* Mobile / Safe-area helpers */
+/* Provide simple utility classes for safe-area padding (for iOS notch/home indicator) */
+.safe-area-pt {
+    padding-top: env(safe-area-inset-top);
+    padding-top: constant(safe-area-inset-top);
+}
+.safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: constant(safe-area-inset-bottom);
+}
+
+/* Ensure interactive targets meet minimum touch size on small screens */
+button, .btn, .icon-button {
+    touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+    /* Slightly increase base tappable area for mobile */
+    button, .btn, .icon-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Reduce large side paddings on small screens for better content fit */
+    .px-8 { padding-left: 12px; padding-right: 12px; }
+    .px-6 { padding-left: 12px; padding-right: 12px; }
+}
