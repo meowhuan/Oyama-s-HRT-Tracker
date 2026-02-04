@@ -17,16 +17,17 @@ app.use('/auth', authRoutes);
 app.use('/api', dataRoutes);
 app.use('/admin', adminRoutes);
 
-app.get('/', (req, res) => res.json({ ok: true, message: 'HRT Tracker Backend' }));
-
-// Serve frontend static files if built
+// Serve frontend static files if built; if not, expose a simple JSON root
 const fs = require('fs');
 const distPath = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distPath)) {
 	app.use(express.static(distPath));
+	// For SPA routes, return index.html so client routing works
 	app.get('*', (req, res) => {
 		res.sendFile(path.join(distPath, 'index.html'));
 	});
+} else {
+	app.get('/', (req, res) => res.json({ ok: true, message: 'HRT Tracker Backend' }));
 }
 
 const port = process.env.PORT || 4000;

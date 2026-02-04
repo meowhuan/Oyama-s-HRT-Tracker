@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:backend": "(cd backend && npm run dev)",
     "build": "vite build",
+    "build:backend": "vite build && node scripts/copy_dist_to_backend.cjs",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
