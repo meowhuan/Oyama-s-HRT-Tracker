@@ -7,6 +7,7 @@ export const TRANSLATIONS_BASE = {
         "nav.history": "记录",
         "nav.lab": "校准",
         "nav.settings": "设置",
+        "nav.account": "账户",
 
         "status.estimate": "当前估算血药浓度",
         "status.weight": "体重",
@@ -234,6 +235,7 @@ export const TRANSLATIONS_BASE = {
         "nav.home": "Overview",
         "nav.history": "History",
         "nav.lab": "Calibration",
+        "nav.account": "Account",
         "nav.settings": "Settings",
 
         "status.estimate": "Current Estimated Level",

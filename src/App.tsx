@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Activity, Calendar, FlaskConical, Settings as SettingsIcon } from 'lucide-react';
+import { Activity, Calendar, FlaskConical, Settings as SettingsIcon, User } from 'lucide-react';
 import { useTranslation, LanguageProvider } from './contexts/LanguageContext';
 import { useDialog, DialogProvider } from './contexts/DialogContext';
 import { APP_VERSION } from './constants';
@@ -22,6 +22,12 @@ import Home from './pages/Home';
 import History from './pages/History';
 import Lab from './pages/Lab';
 import Settings from './pages/Settings';
+import Account from './pages/Account';
+import { AuthProvider } from './contexts/AuthContext';
+import Setup from './pages/Setup';
+import Admin from './pages/Admin';
+import { useAuth } from './contexts/AuthContext';
+import { apiGetRecords, apiPostRecord } from './utils/api';
 
 const AppContent = () => {
     const { t, lang, setLang } = useTranslation();
@@ -91,8 +97,8 @@ const AppContent = () => {
     const [isLabModalOpen, setIsLabModalOpen] = useState(false);
     const [editingLab, setEditingLab] = useState<LabResult | null>(null);
 
-    type ViewKey = 'home' | 'history' | 'lab' | 'settings';
-    const viewOrder: ViewKey[] = ['home', 'history', 'lab', 'settings'];
+    type ViewKey = 'home' | 'history' | 'lab' | 'account' | 'admin' | 'settings';
+    const viewOrder: ViewKey[] = ['home', 'history', 'lab', 'account', 'admin', 'settings'];
 
     const [currentView, setCurrentView] = useState<ViewKey>('home');
     const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
@@ -122,6 +128,7 @@ const AppContent = () => {
         return () => { document.body.style.overflow = ''; };
     }, [isExportModalOpen, isPasswordDisplayOpen, isPasswordInputOpen, isWeightModalOpen, isFormOpen, isImportModalOpen, isDisclaimerOpen, isLabModalOpen]);
     const [pendingImportText, setPendingImportText] = useState<string | null>(null);
+    const [showSetup, setShowSetup] = useState(false);
 
     useEffect(() => { localStorage.setItem('hrt-events', JSON.stringify(events)); }, [events]);
     useEffect(() => { localStorage.setItem('hrt-weight', weight.toString()); }, [weight]);
@@ -131,6 +138,40 @@ const AppContent = () => {
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000);
         return () => clearInterval(timer);
+    }, []);
+
+        useEffect(() => {
+                const mode = localStorage.getItem('hrt-backend-mode');
+                // If backend mode is not set, only show setup to authenticated admin users.
+                if (mode) return;
+                // If user info is already loaded and user is admin, show setup; otherwise wait for user to load.
+                if ((window as any).__HRT_IGNORE_SETUP__ !== true) {
+                    // check current user from localStorage as fallback
+                    try {
+                        const usr = localStorage.getItem('hrt-username');
+                        const isAdmin = localStorage.getItem('hrt-user-is-admin');
+                        if (isAdmin === 'true' || usr) {
+                            // prefer to show only if is_admin flag set
+                            if (isAdmin === 'true') setShowSetup(true);
+                        }
+                    } catch (e) {}
+                }
+        }, []);
+
+    // Listen for external data updates (e.g., Account page sync)
+    useEffect(() => {
+        const handler = () => {
+            const saved = localStorage.getItem('hrt-events');
+            setEvents(saved ? JSON.parse(saved) : []);
+            const w = localStorage.getItem('hrt-weight');
+            setWeight(w ? parseFloat(w) : 70.0);
+            const labs = localStorage.getItem('hrt-lab-results');
+            setLabResults(labs ? JSON.parse(labs) : []);
+            const templates = localStorage.getItem('hrt-dose-templates');
+            setDoseTemplates(templates ? JSON.parse(templates) : []);
+        };
+        window.addEventListener('hrt-data-updated', handler);
+        return () => window.removeEventListener('hrt-data-updated', handler);
     }, []);
 
     // Reset scroll when switching tabs to avoid carrying over deep scroll positions
@@ -197,12 +238,20 @@ const AppContent = () => {
 
     type NavItem = { id: ViewKey; label: string; icon: React.ReactElement; };
 
-    const navItems = useMemo<NavItem[]>(() => ([
-        { id: 'home', label: t('nav.home'), icon: <Activity size={16} /> },
-        { id: 'history', label: t('nav.history'), icon: <Calendar size={16} /> },
-        { id: 'lab', label: t('nav.lab'), icon: <FlaskConical size={16} /> },
-        { id: 'settings', label: t('nav.settings'), icon: <SettingsIcon size={16} /> },
-    ]), [t]);
+    const { user } = useAuth();
+
+    const navItems = useMemo<NavItem[]>(() => {
+        const items: NavItem[] = [
+            { id: 'home', label: t('nav.home'), icon: <Activity size={16} /> },
+            { id: 'history', label: t('nav.history'), icon: <Calendar size={16} /> },
+            { id: 'lab', label: t('nav.lab'), icon: <FlaskConical size={16} /> },
+            { id: 'account', label: t('nav.account') || 'Account', icon: <User size={16} /> },
+        ];
+        // Show Admin to any admin user
+        if (user && user.is_admin) items.push({ id: 'admin', label: 'Admin', icon: <User size={16} /> });
+        items.push({ id: 'settings', label: t('nav.settings'), icon: <SettingsIcon size={16} /> });
+        return items;
+    }, [t, user]);
 
     const sanitizeImportedEvents = (raw: any): DoseEvent[] => {
         if (!Array.isArray(raw)) throw new Error('Invalid format');
@@ -371,6 +420,9 @@ const AppContent = () => {
 
     const handleSaveTemplate = (template: DoseTemplate) => {
         setDoseTemplates(prev => [...prev, template]);
+        (async () => {
+            try { await uploadMergedBackup(); } catch (err) { console.error('自动上传合并备份失败', err); }
+        })();
     };
 
     const handleDeleteTemplate = (id: string) => {
@@ -385,11 +437,19 @@ const AppContent = () => {
             }
             return [...prev, e];
         });
+        (async () => {
+            try { await uploadMergedBackup(); } catch (err) { console.error('自动上传合并备份失败', err); }
+        })();
     };
 
     const handleDeleteEvent = (id: string) => {
         showDialog('confirm', t('timeline.delete_confirm'), () => {
             setEvents(prev => prev.filter(e => e.id !== id));
+            (async () => {
+                const doSync = window.confirm('已删除记录，是否将当前本地数据同步到服务器以更新备份？(确定=同步)');
+                if (!doSync) return;
+                try { await uploadMergedBackup(); } catch (err) { console.error('同步失败', err); }
+            })();
         });
     };
 
@@ -401,13 +461,73 @@ const AppContent = () => {
             }
             return [...prev, res];
         });
+        (async () => {
+            try { await uploadMergedBackup(); } catch (err) { console.error('自动上传合并备份失败', err); }
+        })();
     };
 
     const handleClearAllEvents = () => {
         if (!events.length) return;
         showDialog('confirm', t('drawer.clear_confirm'), () => {
             setEvents([]);
+            (async () => {
+                const doSync = window.confirm('已清空本地数据，是否将空数据同步到服务器以覆盖备份？(确定=同步)');
+                if (!doSync) return;
+                try { await uploadMergedBackup(); } catch (err) { console.error('同步失败', err); }
+            })();
         });
+    };
+
+    // Merge local data with latest server backup then upload merged full_backup
+    const uploadMergedBackup = async () => {
+        try {
+            const token = localStorage.getItem('hrt-token');
+            if (!token) return;
+
+            const eventsLocal = JSON.parse(localStorage.getItem('hrt-events') || '[]');
+            const labsLocal = JSON.parse(localStorage.getItem('hrt-lab-results') || '[]');
+            const templatesLocal = JSON.parse(localStorage.getItem('hrt-dose-templates') || '[]');
+            const weightLocal = Number(localStorage.getItem('hrt-weight') || '70');
+
+            let serverBackups: any[] = [];
+            try { const recs: any = await apiGetRecords(); serverBackups = (recs || []).filter((r: any) => r && r.data && r.data.__type === 'full_backup'); } catch (e) { serverBackups = []; }
+
+            let mergedEvents = [] as any[];
+            let mergedLabs = [] as any[];
+            let mergedTemplates = [] as any[];
+
+            if (serverBackups.length) {
+                const sorted = serverBackups.sort((a: any, b: any) => {
+                    const ta = a.data.payload?.meta?.exportedAt || a.created_at || 0;
+                    const tb = b.data.payload?.meta?.exportedAt || b.created_at || 0;
+                    return new Date(tb).getTime() - new Date(ta).getTime();
+                });
+                const latest = sorted[0].data.payload || {};
+
+                const mapEv: Record<string, any> = {};
+                eventsLocal.forEach((e: any) => { if (!e.id) e.id = uuidv4(); mapEv[e.id] = e; });
+                (latest.events || []).forEach((e: any) => { if (!e.id) e.id = uuidv4(); if (!mapEv[e.id]) mapEv[e.id] = e; });
+                mergedEvents = Object.values(mapEv);
+
+                const mapLab: Record<string, any> = {};
+                labsLocal.forEach((l: any) => { if (!l.id) l.id = uuidv4(); mapLab[l.id] = l; });
+                (latest.labResults || []).forEach((l: any) => { if (!l.id) l.id = uuidv4(); if (!mapLab[l.id]) mapLab[l.id] = l; });
+                mergedLabs = Object.values(mapLab);
+
+                const mapTpl: Record<string, any> = {};
+                templatesLocal.forEach((t: any) => { if (!t.id) t.id = uuidv4(); mapTpl[t.id] = t; });
+                (latest.doseTemplates || []).forEach((t: any) => { if (!t.id) t.id = uuidv4(); if (!mapTpl[t.id]) mapTpl[t.id] = t; });
+                mergedTemplates = Object.values(mapTpl);
+            } else {
+                mergedEvents = eventsLocal;
+                mergedLabs = labsLocal;
+                mergedTemplates = templatesLocal;
+            }
+
+            const payload = { meta: { exportedAt: new Date().toISOString() }, weight: weightLocal, events: mergedEvents, labResults: mergedLabs, doseTemplates: mergedTemplates };
+            const rec = { __type: 'full_backup', payload };
+            await apiPostRecord(rec);
+        } catch (err) { console.error('uploadMergedBackup error', err); throw err; }
     };
 
     const handleSaveDosages = () => {
@@ -561,6 +681,22 @@ const AppContent = () => {
                         />
                     )}
 
+                            {currentView === 'account' && (
+                                <Account />
+                            )}
+
+                            {currentView === 'admin' && (
+                                <Admin />
+                            )}
+
+                            {showSetup && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-6 max-w-2xl w-full">
+                                        <Setup onClose={() => setShowSetup(false)} />
+                                    </div>
+                                </div>
+                            )}
+
                     {currentView === 'settings' && (
                         <Settings
                             t={t}
@@ -579,6 +715,7 @@ const AppContent = () => {
                             appVersion={APP_VERSION}
                             weight={weight}
                             setIsWeightModalOpen={setIsWeightModalOpen}
+                            onOpenSetup={() => setShowSetup(true)}
                         />
                     )}
                 </div>
@@ -690,7 +827,9 @@ const AppContent = () => {
 const App = () => (
     <LanguageProvider>
         <DialogProvider>
-            <AppContent />
+            <AuthProvider>
+                <AppContent />
+            </AuthProvider>
         </DialogProvider>
     </LanguageProvider>
 );

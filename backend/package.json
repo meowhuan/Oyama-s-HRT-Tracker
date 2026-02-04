@@ -1,0 +1,26 @@
+{
+  "name": "hrt-tracker-backend",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "init-db": "node src/init_db.js",
+    "dev": "nodemon src/index.js",
+    "change-admin-password": "node change_admin_password.js",
+    "get-user-token": "node get_user_token.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^8.4.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0"
+    ,"nodemailer": "^6.9.3",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

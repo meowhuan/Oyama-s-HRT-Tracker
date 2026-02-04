@@ -9,6 +9,19 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          // proxy API and auth requests to backend during development
+          '/api': {
+            target: env.VITE_BACKEND_URL || 'http://localhost:4000',
+            changeOrigin: true,
+            secure: false
+          },
+          '/auth': {
+            target: env.VITE_BACKEND_URL || 'http://localhost:4000',
+            changeOrigin: true,
+            secure: false
+          }
+        }
       },
       plugins: [
         react(),

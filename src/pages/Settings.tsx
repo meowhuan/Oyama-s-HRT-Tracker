@@ -21,6 +21,7 @@ interface SettingsProps {
     appVersion: string;
     weight: number;
     setIsWeightModalOpen: (isOpen: boolean) => void;
+    onOpenSetup?: () => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -40,6 +41,7 @@ const Settings: React.FC<SettingsProps> = ({
     appVersion,
     weight,
     setIsWeightModalOpen
+    , onOpenSetup
 }) => {
     return (
         <div className="relative space-y-5 pt-6 pb-24">
@@ -90,6 +92,17 @@ const Settings: React.FC<SettingsProps> = ({
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold text-zinc-900 dark:text-white">{weight} kg</span>
+                            </div>
+                        </button>
+                    </div>
+                    <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                        <button
+                            onClick={() => onOpenSetup && onOpenSetup()}
+                            className="w-full flex items-center gap-3 px-6 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition text-left"
+                        >
+                            <Monitor className="text-zinc-700" size={20} />
+                            <div className="text-left">
+                                <p className="font-bold text-zinc-900 dark:text-white text-sm">安装向导</p>
                             </div>
                         </button>
                     </div>

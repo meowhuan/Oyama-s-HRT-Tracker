@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:backend": "(cd backend && npm run dev)",
     "build": "vite build",
     "preview": "vite preview",
     "tauri:dev": "tauri dev",
