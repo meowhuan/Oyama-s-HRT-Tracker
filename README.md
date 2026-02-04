@@ -60,6 +60,10 @@ HRT Recorder Web 是一个用于记录与估算雌二醇（E2）血药浓度的�
 本项目的药代动力学实现参考并对齐于 `HRT-Recorder-PKcomponent-Test` 中的模型。
 
 ### 快速开始
+
+环境要求：
+- Node.js v20.20.0
+
 前端（开发）:
 ```bash
 npm install
@@ -72,7 +76,7 @@ npm install
 npm run build:backend   # 运行 `vite build` 并复制 dist 到 backend/dist
 ```
 
-后端（可选，本地运行，使用node v20.20）:
+后端（可选，本地运行）:
 ```powershell
 cd backend
 npm install
@@ -80,6 +84,16 @@ npm run start   # 或 node src/index.js
 ```
 
 后端默认运行在 `http://localhost:4000`，若已用 `build:backend` 则前端会由后端静态托管。
+
+PM2后台运行（可选）：
+```bash
+#全局安装PM2
+npm install -g pm2
+#启动服务(在backed文件夹)
+pm2 start npm --name "oyama-hrt-backend" -- run start
+#查看运行状态
+pm2 list
+```
 
 ### 部署与托管
 
