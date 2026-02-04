@@ -66,7 +66,7 @@ npm install
 npm run dev
 ```
 
-后端（可选）:
+后端（可选 使用node v20.20）:
 ```powershell
 cd backend
 npm install
