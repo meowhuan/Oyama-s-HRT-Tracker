@@ -66,13 +66,7 @@ npm install
 npm run dev
 ```
 
-构建并由后端托管（生产打包）:
-```bash
-npm install
-npm run build:backend   # 运行 `vite build` 并复制 dist 到 backend/dist
-```
-
-后端（可选，本地运行）:
+后端（可选 使用node v20.20）:
 ```powershell
 cd backend
 npm install
