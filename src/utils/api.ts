@@ -21,8 +21,11 @@ export async function apiRegister(username: string, password: string) {
   return res.json();
 }
 
-export async function apiLogin(username: string, password: string) {
-  const res = await fetch(`${getBaseUrl()}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+export async function apiLogin(username: string, password: string, adminKey?: string, otp?: string) {
+  const payload: any = { username, password };
+  if (adminKey) payload.adminKey = adminKey;
+  if (otp) payload.otp = otp;
+  const res = await fetch(`${getBaseUrl()}/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   return res.json();
 }
 
@@ -56,6 +59,13 @@ export type SetupStatus = {
   dbUser?: string;
   dbName?: string;
   updatedAt?: string | null;
+  dbPasswordSet?: boolean;
+  auth?: {
+    configured?: boolean;
+    enableVerification?: boolean;
+    enable2FA?: boolean;
+    noVerification?: boolean;
+  };
 };
 
 export async function apiGetSetupStatus(baseUrlOverride?: string): Promise<SetupStatus> {
@@ -65,7 +75,7 @@ export async function apiGetSetupStatus(baseUrlOverride?: string): Promise<Setup
   return res.json() as Promise<SetupStatus>;
 }
 
-export async function apiCompleteSetup(payload: { dbType: 'sqlite' | 'postgres' | 'mysql'; dbPath?: string; dbHost?: string; dbPort?: number; dbUser?: string; dbPassword?: string; dbName?: string }, baseUrlOverride?: string) {
+export async function apiCompleteSetup(payload: { dbType: 'sqlite' | 'postgres' | 'mysql'; dbPath?: string; dbHost?: string; dbPort?: number; dbUser?: string; dbPassword?: string; dbName?: string; auth?: { enableVerification?: boolean; enable2FA?: boolean; noVerification?: boolean } }, baseUrlOverride?: string) {
   const base = baseUrlOverride || getBaseUrl();
   const res = await fetch(`${base}/setup/complete`, {
     method: 'POST',

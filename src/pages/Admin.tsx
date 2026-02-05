@@ -7,6 +7,7 @@ const Admin: React.FC = () => {
   const { token, baseUrl, user } = useAuth();
   const [users, setUsers] = useState<any[]>([]);
   const [cfg, setCfg] = useState<any>({});
+  const [authCfg, setAuthCfg] = useState<any>({});
   const [status, setStatus] = useState<string>('');
   const [visibleRecords, setVisibleRecords] = useState<Record<string, boolean>>({});
   const [showDeleted, setShowDeleted] = useState(false);
@@ -55,7 +56,13 @@ const Admin: React.FC = () => {
     if (res.ok) setCfg(await res.json() as any);
   };
 
-  useEffect(() => { fetchUsers(); fetchCfg(); }, []);
+  const fetchAuthCfg = async () => {
+    if (!token) return;
+    const res = await fetch(`${baseUrl}/admin/auth-config`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setAuthCfg(await res.json() as any);
+  };
+
+  useEffect(() => { fetchUsers(); fetchCfg(); fetchAuthCfg(); }, []);
 
   const promoteUser = async (id: number) => {
     if (!token) return setStatus('请先登录');
@@ -126,6 +133,13 @@ const Admin: React.FC = () => {
     const res = await fetch(`${baseUrl}/admin/email-config`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(cfg) });
     if (res.ok) setStatus('Saved'); else setStatus('Failed');
   };
+
+  const saveAuthCfg = async () => {
+    const res = await fetch(`${baseUrl}/admin/auth-config`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(authCfg) });
+    if (res.ok) setStatus('Saved'); else setStatus('Failed');
+  };
+
+  const canEnable2FA = !!user?.totp_enabled;
 
   return (
     <div className="p-6 max-w-4xl">
@@ -227,6 +241,68 @@ const Admin: React.FC = () => {
           </div>
         </section>
       )}
+
+      <section className="mb-6">
+        <h3 className="font-semibold mb-2">验证方式管理</h3>
+        <div className="bg-white dark:bg-zinc-900 p-3 rounded space-y-3">
+          <div className="text-sm text-zinc-500">可多选启用验证方式；若选择“无验证”，其它验证方式将自动关闭。</div>
+          <div className="flex flex-col gap-2">
+            <label className={`flex items-center gap-2 ${authCfg.noVerification ? 'opacity-50' : ''}`}>
+              <input
+                type="checkbox"
+                checked={!!authCfg.enableVerification}
+                onChange={e => setAuthCfg({ ...authCfg, enableVerification: e.target.checked })}
+                disabled={!!authCfg.noVerification}
+              />
+              <span className="text-sm">邮箱验证</span>
+            </label>
+            <label className={`flex items-center gap-2 ${authCfg.noVerification ? 'opacity-50' : ''} ${(!canEnable2FA && !authCfg.enable2FA) ? 'opacity-50' : ''}`}>
+              <input
+                type="checkbox"
+                checked={!!authCfg.enable2FA}
+                onChange={e => setAuthCfg({ ...authCfg, enable2FA: e.target.checked })}
+                disabled={!!authCfg.noVerification || (!canEnable2FA && !authCfg.enable2FA)}
+              />
+              <span className="text-sm">2FA（TOTP）</span>
+            </label>
+            {!canEnable2FA && !authCfg.enable2FA && (
+              <div className="text-xs text-amber-600">启用 2FA 前，请先在「账户与云同步」里绑定 2FA。</div>
+            )}
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!authCfg.noVerification}
+                onChange={e => {
+                  const checked = e.target.checked;
+                  setAuthCfg({
+                    ...authCfg,
+                    noVerification: checked,
+                    enableVerification: checked ? false : !!authCfg.enableVerification,
+                    enable2FA: checked ? false : !!authCfg.enable2FA,
+                  });
+                }}
+              />
+              <span className="text-sm">无验证（管理员登录需环境密钥）</span>
+            </label>
+          </div>
+          {authCfg.noVerification && (
+            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+              已启用“无验证”。管理员登录需要环境变量 <code>ADMIN_LOGIN_KEY</code>。
+              <div className="mt-2">Windows：在系统环境变量中新增 <code>ADMIN_LOGIN_KEY</code>，重启服务生效。</div>
+              <div className="mt-2">Linux（systemd）：服务文件加入 <code>Environment=ADMIN_LOGIN_KEY=你的密钥</code>，然后 <code>systemctl daemon-reload</code> 并重启服务。</div>
+            </div>
+          )}
+          {authCfg.enable2FA && (
+            <div className="text-sm text-zinc-500">
+              开启 2FA 后，管理员必须先在「账户与云同步」里绑定 2FA 才能登录。
+            </div>
+          )}
+          <div className="flex gap-2 items-center">
+            <button className="btn" onClick={saveAuthCfg}>保存</button>
+            <div className="text-sm text-zinc-500">{status}</div>
+          </div>
+        </div>
+      </section>
 
       <section>
         <h3 className="font-semibold mb-2">Email config</h3>

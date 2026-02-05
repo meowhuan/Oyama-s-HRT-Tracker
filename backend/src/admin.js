@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('./db');
 const { loadConfig, saveConfig } = require('./email');
+const { loadAuthConfig, saveAuthConfig } = require('./auth_config');
 
 const router = express.Router();
 
@@ -37,6 +38,30 @@ router.post('/email-config', (req, res) => {
   const cfg = req.body || {};
   saveConfig(cfg);
   res.json({ ok: true });
+});
+
+router.get('/auth-config', (req, res) => {
+  const cfg = loadAuthConfig();
+  res.json(cfg || {});
+});
+
+router.post('/auth-config', (req, res) => {
+  const cfg = req.body || {};
+  (async () => {
+    try {
+      if (cfg.enable2FA) {
+        const me = await db.get('SELECT totp_enabled FROM users WHERE id = ?', [req.admin?.id]);
+        if (!me || !me.totp_enabled) {
+          return res.status(400).json({ error: '启用 2FA 前请先在账户页绑定 2FA' });
+        }
+      }
+      const next = saveAuthConfig(cfg);
+      res.json({ ok: true, config: next });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'server error' });
+    }
+  })();
 });
 
 // The /claim route is intentionally disabled to avoid accidental self-promotion.

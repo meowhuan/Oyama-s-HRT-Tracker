@@ -148,7 +148,8 @@ const AppContent = () => {
             try {
                 const status = await apiGetSetupStatus();
                 if (!mounted) return;
-                const required = !status?.configured;
+                const authRequired = !status?.auth?.configured;
+                const required = !status?.configured || authRequired;
                 setSetupRequired(required);
                 if (required) setShowSetup(true);
             } catch (e) {

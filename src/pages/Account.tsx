@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../contexts/AuthContext';
 import { apiGetRecords, apiPostRecord } from '../utils/api';
 
 const Account: React.FC = () => {
-  const { token, login, register, logout, baseUrl, user } = useAuth();
+  const { token, login, register, logout, baseUrl, user, refreshUser } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loginOtp, setLoginOtp] = useState('');
+  const [adminKey, setAdminKey] = useState('');
   const [status, setStatus] = useState<string | null>(null);
   const [showEmailOnLogin, setShowEmailOnLogin] = useState(false);
+  const [showAdminKeyOnLogin, setShowAdminKeyOnLogin] = useState(false);
+  const [showOtpOnLogin, setShowOtpOnLogin] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -17,10 +22,17 @@ const Account: React.FC = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [uploadController, setUploadController] = useState<AbortController | null>(null);
   const [downloadController, setDownloadController] = useState<AbortController | null>(null);
+  const [totpEnabled, setTotpEnabled] = useState(false);
+  const [totpSecret, setTotpSecret] = useState<string | null>(null);
+  const [totpUrl, setTotpUrl] = useState<string | null>(null);
+  const [totpToken, setTotpToken] = useState('');
+  const [totpDisableToken, setTotpDisableToken] = useState('');
+  const [totpDisablePassword, setTotpDisablePassword] = useState('');
+  const [totpBusy, setTotpBusy] = useState(false);
 
   const handleLogin = async () => {
     setStatus('');
-    const res = await login(username, password);
+    const res = await login(username, password, adminKey, loginOtp);
     if (!res.ok) setStatus(res.error || '登录失败');
     else setStatus('登录成功');
   };
@@ -28,7 +40,7 @@ const Account: React.FC = () => {
   // 登录并在检测到服务器备份时提示合并或覆盖
   const handleLoginAndSync = async () => {
     setStatus('');
-    const res = await login(username, password);
+    const res = await login(username, password, adminKey, loginOtp);
     if (!res.ok) return setStatus(res.error || '登录失败');
     setStatus('登录成功');
 
@@ -46,17 +58,23 @@ const Account: React.FC = () => {
   };
 
   useEffect(() => {
-    // fetch public config to see if email verification is enabled
+    // fetch public config to see which verification methods are enabled
     (async () => {
       try {
         const res = await fetch(`${baseUrl}/auth/config`);
         if (res.ok) {
           const j: any = await res.json().catch(() => ({}));
           setShowEmailOnLogin(!!j.enableVerification);
+          setShowAdminKeyOnLogin(!!j.noVerification);
+          setShowOtpOnLogin(!!j.enable2FA);
         }
       } catch (e) { /* ignore */ }
     })();
   }, [baseUrl]);
+
+  useEffect(() => {
+    setTotpEnabled(!!user?.totp_enabled);
+  }, [user?.totp_enabled]);
 
   const handleRegister = async () => {
     setStatus('');
@@ -242,6 +260,16 @@ const Account: React.FC = () => {
           {showEmailOnLogin && <input placeholder="邮箱" className="p-3 border rounded bg-transparent" value={email} onChange={e => setEmail(e.target.value)} />}
           <input placeholder="密码" type="password" className="p-3 border rounded bg-transparent" value={password} onChange={e => setPassword(e.target.value)} />
         </div>
+        {showAdminKeyOnLogin && (
+          <div className="mb-3">
+            <input placeholder="管理员密钥（仅管理员需要）" className="p-3 border rounded bg-transparent w-full" value={adminKey} onChange={e => setAdminKey(e.target.value)} />
+          </div>
+        )}
+        {showOtpOnLogin && (
+          <div className="mb-3">
+            <input placeholder="2FA 验证码（已开启 2FA 时填写）" className="p-3 border rounded bg-transparent w-full" value={loginOtp} onChange={e => setLoginOtp(e.target.value)} />
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-4">
           <button className="py-2 px-4 rounded-full bg-zinc-900 text-white font-bold" onClick={handleLoginAndSync}>登录并同步</button>
@@ -254,6 +282,115 @@ const Account: React.FC = () => {
           <div className="mb-4 p-3 border rounded bg-zinc-50 dark:bg-zinc-800">
             已登录为 <strong>{user.username}</strong>
             <div className="text-sm text-zinc-500">{user.email} · {user.verified ? '已验证' : '未验证'}</div>
+          </div>
+        )}
+
+        {user && showOtpOnLogin && (
+          <div className="mb-4 p-3 border rounded bg-white/50 dark:bg-zinc-800">
+            <h3 className="font-semibold mb-2">两步验证（2FA）</h3>
+            <div className="text-sm text-zinc-500 mb-2">当前状态：{totpEnabled ? '已启用' : '未启用'}</div>
+
+            {!totpEnabled && (
+              <div className="space-y-3">
+                <button
+                  className="py-2 px-4 rounded-full bg-emerald-600 text-white"
+                  disabled={totpBusy}
+                  onClick={async () => {
+                    setTotpBusy(true);
+                    setStatus('');
+                    try {
+                      const resp = await fetch(`${baseUrl}/auth/totp/setup`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+                      const j: any = await resp.json().catch(() => ({}));
+                      if (!resp.ok) return setStatus(j.error || '2FA 设置失败');
+                      setTotpSecret(j.secret);
+                      setTotpUrl(j.otpauthUrl);
+                      setStatus('请扫描二维码并输入验证码完成绑定');
+                    } catch (e) {
+                      console.error(e);
+                      setStatus('网络错误');
+                    } finally {
+                      setTotpBusy(false);
+                    }
+                  }}
+                >开始绑定 2FA</button>
+
+                {totpUrl && (
+                  <div className="p-3 border rounded bg-white dark:bg-zinc-900">
+                    <div className="mb-2 text-sm text-zinc-500">使用验证器扫描二维码：</div>
+                    <QRCodeCanvas value={totpUrl} size={180} />
+                    {totpSecret && <div className="mt-2 text-xs text-zinc-500">密钥：{totpSecret}</div>}
+                    <div className="mt-3 flex gap-2">
+                      <input placeholder="6 位验证码" className="p-2 border rounded flex-1" value={totpToken} onChange={e => setTotpToken(e.target.value)} />
+                      <button
+                        className="py-2 px-4 rounded-full bg-zinc-900 text-white"
+                        disabled={totpBusy}
+                        onClick={async () => {
+                          setTotpBusy(true);
+                          setStatus('');
+                          try {
+                            const resp = await fetch(`${baseUrl}/auth/totp/enable`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                              body: JSON.stringify({ token: totpToken })
+                            });
+                            const j: any = await resp.json().catch(() => ({}));
+                            if (!resp.ok) return setStatus(j.error || '开启失败');
+                            setTotpEnabled(true);
+                            setTotpSecret(null);
+                            setTotpUrl(null);
+                            setTotpToken('');
+                            await refreshUser();
+                            setStatus('2FA 已启用');
+                          } catch (e) {
+                            console.error(e);
+                            setStatus('网络错误');
+                          } finally {
+                            setTotpBusy(false);
+                          }
+                        }}
+                      >确认启用</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {totpEnabled && (
+              <div className="space-y-2">
+                <div className="text-sm text-zinc-500">关闭 2FA 需要当前密码与验证码。</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <input placeholder="当前密码" type="password" className="p-2 border rounded" value={totpDisablePassword} onChange={e => setTotpDisablePassword(e.target.value)} />
+                  <input placeholder="6 位验证码" className="p-2 border rounded" value={totpDisableToken} onChange={e => setTotpDisableToken(e.target.value)} />
+                </div>
+                <button
+                  className="py-2 px-4 rounded-full bg-red-600 text-white"
+                  disabled={totpBusy}
+                  onClick={async () => {
+                    setTotpBusy(true);
+                    setStatus('');
+                    try {
+                      const resp = await fetch(`${baseUrl}/auth/totp/disable`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ currentPassword: totpDisablePassword, token: totpDisableToken })
+                      });
+                      const j: any = await resp.json().catch(() => ({}));
+                      if (!resp.ok) return setStatus(j.error || '关闭失败');
+                      setTotpEnabled(false);
+                      setTotpDisablePassword('');
+                      setTotpDisableToken('');
+                      await refreshUser();
+                      setStatus('2FA 已关闭');
+                    } catch (e) {
+                      console.error(e);
+                      setStatus('网络错误');
+                    } finally {
+                      setTotpBusy(false);
+                    }
+                  }}
+                >关闭 2FA</button>
+              </div>
+            )}
           </div>
         )}
 

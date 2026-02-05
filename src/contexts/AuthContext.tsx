@@ -2,10 +2,11 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type AuthContextValue = {
   token: string | null;
-  user?: { id?: number; username?: string; email?: string; is_admin?: boolean; verified?: boolean } | null;
-  login: (username: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  user?: { id?: number; username?: string; email?: string; is_admin?: boolean; verified?: boolean; is_root?: boolean; totp_enabled?: boolean } | null;
+  login: (username: string, password: string, adminKey?: string, otp?: string) => Promise<{ ok: boolean; error?: string }>;
   register: (username: string, password: string, email?: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   baseUrl: string;
   setBaseUrl: (url: string) => void;
   mode: 'embedded' | 'remote';
@@ -45,21 +46,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('hrt-db-type', dbType); }, [dbType]);
   useEffect(() => { if (user && user.username) localStorage.setItem('hrt-username', user.username); else localStorage.removeItem('hrt-username'); }, [user]);
 
-  const login = async (username: string, password: string) => {
+  const fetchMe = async (tok: string) => {
+    const meRes = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${tok}` } });
+    if (!meRes.ok) return setUser(null);
+    const me: any = await meRes.json();
+    setUser({ id: me.id, username: me.username, email: me.email, is_admin: !!me.is_admin, verified: !!me.verified, is_root: !!me.is_root, totp_enabled: !!me.totp_enabled });
+  };
+
+  const refreshUser = async () => {
+    const tok = localStorage.getItem('hrt-token');
+    if (!tok) return;
+    try { await fetchMe(tok); } catch (e) { /* ignore */ }
+  };
+
+  const login = async (username: string, password: string, adminKey?: string, otp?: string) => {
     try {
+      const payload: any = { username, password };
+      if (adminKey) payload.adminKey = adminKey;
+      if (otp) payload.otp = otp;
       const resp = await fetch(`${baseUrl}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify(payload)
       });
       const data: any = await resp.json();
       if (resp.ok && data.token) {
         setToken(data.token);
-        // fetch profile
-        try {
-          const meRes = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } });
-          const me: any = await meRes.json();
-          setUser({ id: me.id, username: me.username, email: me.email, is_admin: !!me.is_admin, verified: !!me.verified, is_root: !!me.is_root });
-        } catch (e) { setUser({ username }); }
+        try { await fetchMe(data.token); } catch (e) { setUser({ username }); }
         return { ok: true };
       }
       return { ok: false, error: data.error || '登录失败' };
@@ -81,9 +93,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (resp.ok && data.token) {
         setToken(data.token);
         try {
-          const meRes = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${data.token}` } });
-          const me: any = await meRes.json();
-          setUser({ id: me.id, username: me.username, email: me.email, is_admin: !!me.is_admin, verified: !!me.verified, is_root: !!me.is_root });
+          await fetchMe(data.token);
         } catch (e) { setUser({ username }); }
         return { ok: true };
       }
@@ -105,14 +115,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const tok = localStorage.getItem('hrt-token');
       if (tok) {
         try {
-          const meRes = await fetch(`${baseUrl}/auth/me`, { headers: { Authorization: `Bearer ${tok}` } });
-          if (meRes.ok) {
-            const me: any = await meRes.json();
-            setUser({ id: me.id, username: me.username, email: me.email, is_admin: !!me.is_admin, verified: !!me.verified, is_root: !!me.is_root });
-            setToken(tok);
-          } else {
-            setToken(null);
-          }
+          await fetchMe(tok);
+          setToken(tok);
         } catch (e) { setToken(null); }
       }
     })();
@@ -123,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setDbType = (d: 'sqlite' | 'postgres' | 'mysql') => setDbTypeState(d);
 
   return (
-    <AuthContext.Provider value={{ token, user, login, register, logout, baseUrl, setBaseUrl, mode, setMode, dbType, setDbType }}>
+    <AuthContext.Provider value={{ token, user, login, register, logout, refreshUser, baseUrl, setBaseUrl, mode, setMode, dbType, setDbType }}>
       {children}
     </AuthContext.Provider>
   );

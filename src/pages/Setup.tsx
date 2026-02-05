@@ -20,10 +20,15 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
   const [dbUser, setDbUser] = useState<string>('');
   const [dbPassword, setDbPassword] = useState<string>('');
   const [dbName, setDbName] = useState<string>('');
+  const [dbPasswordTouched, setDbPasswordTouched] = useState(false);
+  const [dbPasswordStored, setDbPasswordStored] = useState(false);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [enableVerification, setEnableVerification] = useState(false);
+  const [enable2FA, setEnable2FA] = useState(false);
+  const [noVerification, setNoVerification] = useState(false);
 
   useEffect(() => { setInputUrl(baseUrl || ''); }, [baseUrl]);
 
@@ -62,6 +67,13 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
         if (status?.dbPort) setDbPort(String(status.dbPort));
         if (status?.dbUser) setDbUser(status.dbUser);
         if (status?.dbName) setDbName(status.dbName);
+        setDbPasswordStored(!!status?.dbPasswordSet);
+        setDbPasswordTouched(false);
+        if (status?.auth?.configured) {
+          setEnableVerification(!!status.auth.enableVerification);
+          setEnable2FA(!!status.auth.enable2FA);
+          setNoVerification(!!status.auth.noVerification);
+        }
       } catch (e) {
         if (mounted) setError('无法连接后端，稍后再试。');
       }
@@ -80,6 +92,11 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
     setError(null);
     setTestResult(null);
     try {
+      if (!noVerification && !enableVerification && !enable2FA) {
+        setError('请选择至少一种验证方式');
+        setSaving(false);
+        return;
+      }
       const url = inputUrl.trim();
       if (url) setBaseUrl(url);
       await apiCompleteSetup({
@@ -88,17 +105,22 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
         dbHost: dbHost || undefined,
         dbPort: dbPort ? Number(dbPort) : undefined,
         dbUser: dbUser || undefined,
-        dbPassword: dbPassword || undefined,
-        dbName: dbName || undefined
+        dbPassword: dbPasswordTouched ? dbPassword : undefined,
+        dbName: dbName || undefined,
+        auth: {
+          enableVerification: noVerification ? false : enableVerification,
+          enable2FA: noVerification ? false : enable2FA,
+          noVerification: noVerification,
+        }
       }, url || baseUrl);
       onCompleted && onCompleted();
       if (onClose) onClose();
     } catch (e: any) {
       setError(e?.message || '保存失败');
-    } finally {
-      setSaving(false);
-    }
-  };
+      } finally {
+        setSaving(false);
+      }
+    };
 
   const handleTestConnection = async () => {
     setTesting(true);
@@ -112,7 +134,7 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
         dbHost: dbHost || undefined,
         dbPort: dbPort ? Number(dbPort) : undefined,
         dbUser: dbUser || undefined,
-        dbPassword: dbPassword || undefined,
+        dbPassword: dbPasswordTouched ? dbPassword : undefined,
         dbName: dbName || undefined
       }, url || baseUrl);
       setTestResult('连接成功');
@@ -181,11 +203,53 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
             </div>
             <div>
               <label className="block font-semibold mb-2">密码</label>
-              <input type="password" className="w-full px-3 py-2 border rounded" value={dbPassword} onChange={e => setDbPassword(e.target.value)} placeholder="可选" />
+              <input type="password" className="w-full px-3 py-2 border rounded" value={dbPassword} onChange={e => { setDbPassword(e.target.value); setDbPasswordTouched(true); }} placeholder={dbPasswordStored ? '已保存（留空不修改）' : '可选'} />
+              {dbPasswordStored && <div className="text-xs text-zinc-500 mt-1">留空将保留已保存的数据库密码。</div>}
             </div>
           </div>
         </div>
       )}
+
+      <div className="mb-4">
+        <label className="block font-semibold mb-2">登录验证方式（可多选）</label>
+        <div className="flex flex-col gap-2">
+          <label className={`flex items-center gap-2 ${noVerification ? 'opacity-50' : ''}`}>
+            <input type="checkbox" checked={enableVerification} onChange={e => setEnableVerification(e.target.checked)} disabled={noVerification} />
+            <span>邮箱验证</span>
+          </label>
+          <label className={`flex items-center gap-2 ${noVerification ? 'opacity-50' : ''}`}>
+            <input type="checkbox" checked={enable2FA} onChange={e => setEnable2FA(e.target.checked)} disabled={noVerification} />
+            <span>2FA（TOTP）</span>
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={noVerification}
+              onChange={e => {
+                const checked = e.target.checked;
+                setNoVerification(checked);
+                if (checked) {
+                  setEnableVerification(false);
+                  setEnable2FA(false);
+                }
+              }}
+            />
+            <span>无验证（管理员登录需环境密钥）</span>
+          </label>
+        </div>
+        {enable2FA && (
+          <div className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+            已启用 2FA。保存后请前往后端控制台使用 <code>npm run print-2fa</code> 获取二维码与密钥并完成绑定。
+          </div>
+        )}
+        {noVerification && (
+          <div className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+            请选择“无验证”时，系统会强制管理员登录提供环境变量 <code>ADMIN_LOGIN_KEY</code>。此密钥需由系统层永久保存。
+            <div className="mt-2">Windows 示例：在系统环境变量中新增 <code>ADMIN_LOGIN_KEY</code>，重启服务后生效。</div>
+            <div className="mt-2">Linux 示例（systemd）：在服务文件中加入 <code>Environment=ADMIN_LOGIN_KEY=你的密钥</code>，然后执行 <code>systemctl daemon-reload</code> 并重启服务。</div>
+          </div>
+        )}
+      </div>
 
       <div className="mb-4">
         <label className="block font-semibold mb-2">后端地址</label>

@@ -23,6 +23,9 @@ const initSchema = async () => {
       is_root INTEGER DEFAULT 0,
       totp_secret TEXT,
       totp_enabled INTEGER DEFAULT 0,
+      login_fail_count INTEGER DEFAULT 0,
+      last_failed_at INTEGER,
+      login_lock_until INTEGER,
       is_deleted INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )` : db.type === 'mysql' ? `
@@ -37,6 +40,9 @@ const initSchema = async () => {
       is_root TINYINT DEFAULT 0,
       totp_secret TEXT,
       totp_enabled TINYINT DEFAULT 0,
+      login_fail_count INT DEFAULT 0,
+      last_failed_at BIGINT,
+      login_lock_until BIGINT,
       is_deleted TINYINT DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )` : `
@@ -51,6 +57,9 @@ const initSchema = async () => {
       is_root INTEGER DEFAULT 0,
       totp_secret TEXT,
       totp_enabled INTEGER DEFAULT 0,
+      login_fail_count INTEGER DEFAULT 0,
+      last_failed_at INTEGER,
+      login_lock_until INTEGER,
       is_deleted INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`;
@@ -89,6 +98,9 @@ const initSchema = async () => {
   await addColumnSafe("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0");
   await addColumnSafe("ALTER TABLE users ADD COLUMN totp_secret TEXT");
   await addColumnSafe("ALTER TABLE users ADD COLUMN totp_enabled INTEGER DEFAULT 0");
+  await addColumnSafe("ALTER TABLE users ADD COLUMN login_fail_count INTEGER DEFAULT 0");
+  await addColumnSafe("ALTER TABLE users ADD COLUMN last_failed_at INTEGER");
+  await addColumnSafe("ALTER TABLE users ADD COLUMN login_lock_until INTEGER");
   await addColumnSafe("ALTER TABLE users ADD COLUMN is_root INTEGER DEFAULT 0");
   await addColumnSafe("ALTER TABLE users ADD COLUMN is_deleted INTEGER DEFAULT 0");
 

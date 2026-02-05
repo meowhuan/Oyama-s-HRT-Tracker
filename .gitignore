@@ -14,6 +14,12 @@ src-tauri/target
 src-tauri/target/release
 *.local
 
+# Backend runtime secrets/config
+backend/setup.json
+backend/auth_config.json
+backend/email_config.json
+backend/backend_admin_bootstrap.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

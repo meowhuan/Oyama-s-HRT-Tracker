@@ -8,3 +8,5 @@ logs/
 .DS_Store
 .vscode/
 setup.json
+auth_config.json
+email_config.json
