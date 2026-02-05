@@ -27,7 +27,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import Setup from './pages/Setup';
 import Admin from './pages/Admin';
 import { useAuth } from './contexts/AuthContext';
-import { apiGetRecords, apiPostRecord } from './utils/api';
+import { apiGetRecords, apiGetSetupStatus, apiPostRecord } from './utils/api';
 
 const AppContent = () => {
     const { t, lang, setLang } = useTranslation();
@@ -130,6 +130,7 @@ const AppContent = () => {
     }, [isExportModalOpen, isPasswordDisplayOpen, isPasswordInputOpen, isWeightModalOpen, isFormOpen, isImportModalOpen, isDisclaimerOpen, isLabModalOpen]);
     const [pendingImportText, setPendingImportText] = useState<string | null>(null);
     const [showSetup, setShowSetup] = useState(false);
+    const [setupRequired, setSetupRequired] = useState(false);
 
     useEffect(() => { localStorage.setItem('hrt-events', JSON.stringify(events)); }, [events]);
     useEffect(() => { localStorage.setItem('hrt-weight', weight.toString()); }, [weight]);
@@ -141,23 +142,21 @@ const AppContent = () => {
         return () => clearInterval(timer);
     }, []);
 
-        useEffect(() => {
-                const mode = localStorage.getItem('hrt-backend-mode');
-                // If backend mode is not set, only show setup to authenticated admin users.
-                if (mode) return;
-                // If user info is already loaded and user is admin, show setup; otherwise wait for user to load.
-                if ((window as any).__HRT_IGNORE_SETUP__ !== true) {
-                    // check current user from localStorage as fallback
-                    try {
-                        const usr = localStorage.getItem('hrt-username');
-                        const isAdmin = localStorage.getItem('hrt-user-is-admin');
-                        if (isAdmin === 'true' || usr) {
-                            // prefer to show only if is_admin flag set
-                            if (isAdmin === 'true') setShowSetup(true);
-                        }
-                    } catch (e) {}
-                }
-        }, []);
+    useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const status = await apiGetSetupStatus();
+                if (!mounted) return;
+                const required = !status?.configured;
+                setSetupRequired(required);
+                if (required) setShowSetup(true);
+            } catch (e) {
+                if (!mounted) return;
+            }
+        })();
+        return () => { mounted = false; };
+    }, []);
 
     // Listen for external data updates (e.g., Account page sync)
     useEffect(() => {
@@ -710,14 +709,6 @@ const AppContent = () => {
                                 <Admin />
                             )}
 
-                            {showSetup && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-6 max-w-2xl w-full">
-                                        <Setup onClose={() => setShowSetup(false)} />
-                                    </div>
-                                </div>
-                            )}
-
                     {currentView === 'settings' && (
                         <Settings
                             t={t}
@@ -841,6 +832,18 @@ const AppContent = () => {
                 onDelete={handleDeleteLabResult}
                 resultToEdit={editingLab}
             />
+
+            {showSetup && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50">
+                    <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-lg p-6 max-w-2xl w-full">
+                        <Setup
+                            required={setupRequired}
+                            onCompleted={() => { setSetupRequired(false); }}
+                            onClose={() => setShowSetup(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

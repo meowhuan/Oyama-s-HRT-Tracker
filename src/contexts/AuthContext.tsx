@@ -10,8 +10,8 @@ type AuthContextValue = {
   setBaseUrl: (url: string) => void;
   mode: 'embedded' | 'remote';
   setMode: (m: 'embedded' | 'remote') => void;
-  dbType: 'sqlite' | 'postgres';
-  setDbType: (d: 'sqlite' | 'postgres') => void;
+  dbType: 'sqlite' | 'postgres' | 'mysql';
+  setDbType: (d: 'sqlite' | 'postgres' | 'mysql') => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('hrt-token'));
   const [baseUrl, setBaseUrlState] = useState<string>(() => DEFAULT_BASE);
   const [mode, setModeState] = useState<'embedded' | 'remote'>(() => (localStorage.getItem('hrt-backend-mode') as 'embedded' | 'remote') || 'remote');
-  const [dbType, setDbTypeState] = useState<'sqlite' | 'postgres'>(() => (localStorage.getItem('hrt-db-type') as 'sqlite' | 'postgres') || 'sqlite');
+  const [dbType, setDbTypeState] = useState<'sqlite' | 'postgres' | 'mysql'>(() => (localStorage.getItem('hrt-db-type') as 'sqlite' | 'postgres' | 'mysql') || 'sqlite');
   const [user, setUser] = useState<{ id?: number; username?: string } | null>(() => {
     const u = localStorage.getItem('hrt-username');
     return u ? { username: u } : null;
@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const setBaseUrl = (url: string) => setBaseUrlState(url);
   const setMode = (m: 'embedded' | 'remote') => setModeState(m);
-  const setDbType = (d: 'sqlite' | 'postgres') => setDbTypeState(d);
+  const setDbType = (d: 'sqlite' | 'postgres' | 'mysql') => setDbTypeState(d);
 
   return (
     <AuthContext.Provider value={{ token, user, login, register, logout, baseUrl, setBaseUrl, mode, setMode, dbType, setDbType }}>

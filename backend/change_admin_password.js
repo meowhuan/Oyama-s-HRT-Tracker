@@ -42,13 +42,13 @@ async function main() {
   }
 
   try {
-    const user = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
+    const user = await db.get('SELECT id, username FROM users WHERE username = ?', [username]);
     if (!user) {
       console.error('User not found:', username);
       process.exit(3);
     }
     const hash = bcrypt.hashSync(password, 10);
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id);
+    await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, user.id]);
     console.log(`Password updated for user: ${username}`);
     process.exit(0);
   } catch (e) {

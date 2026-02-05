@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { apiGetRecords, apiPostRecord } from '../utils/api';
 
 const Account: React.FC = () => {
-  const { token, login, register, logout, baseUrl, user, mode } = useAuth();
+  const { token, login, register, logout, baseUrl, user } = useAuth();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -234,12 +234,8 @@ const Account: React.FC = () => {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow p-6">
-        <h2 className="text-xl font-bold mb-4">Account / 后端同步</h2>
-
-        <div className="space-y-3 mb-4">
-          <label className="block text-sm text-zinc-500">后端模式</label>
-          <div className="p-3 border rounded bg-zinc-50 dark:bg-zinc-800">{mode === 'embedded' ? '内置（同机）' : baseUrl}</div>
-        </div>
+        <h2 className="text-xl font-bold mb-2">账户与云同步</h2>
+        <p className="text-sm text-zinc-500 mb-4">登录后可将本地数据备份到服务器，或从服务器拉取并合并。</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <input placeholder="用户名" className="p-3 border rounded bg-transparent" value={username} onChange={e => setUsername(e.target.value)} />
@@ -247,7 +243,7 @@ const Account: React.FC = () => {
           <input placeholder="密码" type="password" className="p-3 border rounded bg-transparent" value={password} onChange={e => setPassword(e.target.value)} />
         </div>
 
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           <button className="py-2 px-4 rounded-full bg-zinc-900 text-white font-bold" onClick={handleLoginAndSync}>登录并同步</button>
           <button className="py-2 px-4 rounded-full bg-zinc-700 text-white" onClick={handleRegister}>注册</button>
           <button className="py-2 px-4 rounded-full bg-zinc-300 text-zinc-900" onClick={handleLogout}>登出</button>

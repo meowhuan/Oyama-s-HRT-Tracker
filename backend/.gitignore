@@ -3,3 +3,8 @@ data.db
 .env
 backend_admin_bootstrap.txt
 dist
+logs/
+*.log
+.DS_Store
+.vscode/
+setup.json

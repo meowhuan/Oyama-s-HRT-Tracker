@@ -35,3 +35,49 @@ export async function apiDeleteRecord(id: number) {
   const res = await fetch(`${getBaseUrl()}/api/records/${id}`, { method: 'DELETE', headers: { ...getAuthHeader() } });
   return res.json();
 }
+
+export type SetupStatus = {
+  configured: boolean;
+  dbType?: 'sqlite' | 'postgres' | 'mysql';
+  dbPath?: string;
+  dbHost?: string;
+  dbPort?: number | string;
+  dbUser?: string;
+  dbName?: string;
+  updatedAt?: string | null;
+};
+
+export async function apiGetSetupStatus(baseUrlOverride?: string): Promise<SetupStatus> {
+  const base = baseUrlOverride || getBaseUrl();
+  const res = await fetch(`${base}/setup/status`, { headers: { 'Accept': 'application/json' } });
+  if (!res.ok) throw new Error('Fetch setup status failed');
+  return res.json() as Promise<SetupStatus>;
+}
+
+export async function apiCompleteSetup(payload: { dbType: 'sqlite' | 'postgres' | 'mysql'; dbPath?: string; dbHost?: string; dbPort?: number; dbUser?: string; dbPassword?: string; dbName?: string }, baseUrlOverride?: string) {
+  const base = baseUrlOverride || getBaseUrl();
+  const res = await fetch(`${base}/setup/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok) {
+    throw new Error(data?.error || 'Setup failed');
+  }
+  return data;
+}
+
+export async function apiTestSetupConnection(payload: { dbType: 'sqlite' | 'postgres' | 'mysql'; dbPath?: string; dbHost?: string; dbPort?: number; dbUser?: string; dbPassword?: string; dbName?: string }, baseUrlOverride?: string) {
+  const base = baseUrlOverride || getBaseUrl();
+  const res = await fetch(`${base}/setup/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json().catch(() => ({}))) as any;
+  if (!res.ok) {
+    throw new Error(data?.error || 'Test failed');
+  }
+  return data;
+}

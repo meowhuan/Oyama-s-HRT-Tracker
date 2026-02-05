@@ -1,6 +1,6 @@
 require('dotenv').config();
 // Ensure DB schema initialized/updated before routes use it
-require('./init_db');
+const initDb = require('./init_db');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -8,6 +8,8 @@ const path = require('path');
 const authRoutes = require('./auth');
 const dataRoutes = require('./data');
 const adminRoutes = require('./admin');
+const setupRoutes = require('./setup');
+const { loadSetupConfig } = require('./setup_config');
 
 const app = express();
 app.use(cors());
@@ -16,6 +18,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/auth', authRoutes);
 app.use('/api', dataRoutes);
 app.use('/admin', adminRoutes);
+app.use('/setup', setupRoutes);
 
 // Serve frontend static files if built; if not, expose a simple JSON root
 const fs = require('fs');
@@ -31,4 +34,16 @@ if (fs.existsSync(distPath)) {
 }
 
 const port = process.env.PORT || 4000;
-app.listen(port, () => console.log(`Server listening on http://localhost:${port}`));
+(async () => {
+	await initDb();
+	app.listen(port, () => {
+		const cfg = loadSetupConfig();
+		if (!cfg.configured) {
+			console.log('[setup] Setup not completed yet. Frontend should show the install wizard.');
+		}
+		console.log(`Server listening on http://localhost:${port}`);
+	});
+})().catch((e) => {
+	console.error('Failed to initialize DB:', e);
+	process.exit(1);
+});

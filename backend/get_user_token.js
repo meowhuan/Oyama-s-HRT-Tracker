@@ -28,8 +28,8 @@ async function main() {
 
   try {
     let user;
-    if (username) user = db.prepare('SELECT id, username FROM users WHERE username = ?').get(username);
-    else user = db.prepare('SELECT id, username FROM users WHERE id = ?').get(id);
+    if (username) user = await db.get('SELECT id, username FROM users WHERE username = ?', [username]);
+    else user = await db.get('SELECT id, username FROM users WHERE id = ?', [id]);
 
     if (!user) {
       console.error('User not found');
