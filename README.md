@@ -18,7 +18,7 @@ We strictly adhere to the `PKcore.swift` and `PKparameter.swift` logic provided 
 
 我们严格遵循 **@LaoZhong-Mihari** 提供的 `PKcore.swift` 与 `PKparameter.swift` 中的逻辑，确保网页端模拟与原生实现在精度上保持一致（包括三室模型、双相肌注库房动力学以及特定的舌下吸收分层等）。
 
-## Features 功能
+## Features 功能(原前端项目功能)
 
 * **Multi-Route Simulation**: Supports Injection (Valerate, Benzoate, Cypionate, Enanthate), Oral, Sublingual, Gel, and Patches.<br>
 
