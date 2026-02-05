@@ -1,4 +1,15 @@
-export const getBaseUrl = () => localStorage.getItem('hrt-backend-url') || 'http://localhost:4000';
+const resolveBaseUrl = () => {
+  if (typeof window === 'undefined') return 'http://localhost:4000';
+  const injected = (window as any).__HRT_BACKEND_URL__;
+  if (injected) return injected;
+  const stored = localStorage.getItem('hrt-backend-url');
+  if (stored) return stored;
+  const { protocol, host, origin } = window.location || {} as any;
+  if ((protocol === 'http:' || protocol === 'https:') && host) return origin;
+  return 'http://localhost:4000';
+};
+
+export const getBaseUrl = () => resolveBaseUrl();
 
 const getAuthHeader = () => {
   const token = localStorage.getItem('hrt-token');

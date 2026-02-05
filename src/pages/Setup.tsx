@@ -12,6 +12,8 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
   const { mode, setMode, dbType, setDbType, baseUrl, setBaseUrl } = useAuth();
   const [inputUrl, setInputUrl] = useState<string>(baseUrl || '');
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
+  const [storedUrl, setStoredUrl] = useState<string>('');
+  const [currentOrigin, setCurrentOrigin] = useState<string>('');
   const [dbPath, setDbPath] = useState<string>('');
   const [dbHost, setDbHost] = useState<string>('');
   const [dbPort, setDbPort] = useState<string>('');
@@ -25,6 +27,16 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
 
   useEffect(() => { setInputUrl(baseUrl || ''); }, [baseUrl]);
 
+  useEffect(() => {
+    try {
+      setStoredUrl(localStorage.getItem('hrt-backend-url') || '');
+      setCurrentOrigin(window.location.origin || '');
+    } catch (e) {
+      setStoredUrl('');
+      setCurrentOrigin('');
+    }
+  }, []);
+
   // Auto-detect a sensible backend address based on current location
   useEffect(() => {
     try {
@@ -36,6 +48,7 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
   }, []);
 
   const applyDetected = () => { if (detectedUrl) setInputUrl(detectedUrl); };
+  const applyCurrentOrigin = () => { if (currentOrigin) setInputUrl(currentOrigin); };
 
   useEffect(() => {
     let mounted = true;
@@ -55,6 +68,10 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
     })();
     return () => { mounted = false; };
   }, [baseUrl]);
+
+  const isStoredLocalhost = useMemo(() => /localhost|127\.0\.0\.1/i.test(storedUrl || ''), [storedUrl]);
+  const isCurrentLocalhost = useMemo(() => /localhost|127\.0\.0\.1/i.test(currentOrigin || ''), [currentOrigin]);
+  const shouldWarnBaseUrl = useMemo(() => !!storedUrl && isStoredLocalhost && !isCurrentLocalhost, [storedUrl, isStoredLocalhost, isCurrentLocalhost]);
 
   const canEditBaseUrl = useMemo(() => mode === 'remote', [mode]);
 
@@ -177,6 +194,12 @@ const Setup: React.FC<SetupProps> = ({ onClose, required = false, onCompleted })
           <button className="px-3 py-2 border rounded" onClick={applyDetected} type="button">使用检测地址</button>
         </div>
         {detectedUrl && <p className="text-sm text-zinc-500 mt-2">检测到：{detectedUrl}</p>}
+        {shouldWarnBaseUrl && currentOrigin && (
+          <div className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 flex items-center justify-between gap-2">
+            <span>检测到已保存的后端地址为本机 {storedUrl}，但当前域名是 {currentOrigin}。这会导致无法连接后端。</span>
+            <button className="px-2 py-1 border rounded" onClick={applyCurrentOrigin} type="button">改用当前域名</button>
+          </div>
+        )}
         {!canEditBaseUrl && <p className="text-sm text-amber-600 mt-2">内置模式下后端地址不可修改。</p>}
       </div>
 

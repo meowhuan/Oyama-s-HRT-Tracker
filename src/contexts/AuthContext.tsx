@@ -16,7 +16,18 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const DEFAULT_BASE = (window as any).__HRT_BACKEND_URL__ || localStorage.getItem('hrt-backend-url') || 'http://localhost:4000';
+const resolveBaseUrl = () => {
+  if (typeof window === 'undefined') return 'http://localhost:4000';
+  const injected = (window as any).__HRT_BACKEND_URL__;
+  if (injected) return injected;
+  const stored = localStorage.getItem('hrt-backend-url');
+  if (stored) return stored;
+  const { protocol, host, origin } = window.location || {} as any;
+  if ((protocol === 'http:' || protocol === 'https:') && host) return origin;
+  return 'http://localhost:4000';
+};
+
+const DEFAULT_BASE = resolveBaseUrl();
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('hrt-token'));
